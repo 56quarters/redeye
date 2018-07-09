@@ -1,3 +1,4 @@
+extern crate redeye;
 extern crate tokio;
 
 use tokio::io;

@@ -5,3 +5,7 @@ authors = ["Nick Pillitteri <nick@tshlabs.org>"]
 
 [dependencies]
 tokio = "0.1"
+
+[lib]
+name = "redeye"
+path = "src/redeye/lib.rs"
