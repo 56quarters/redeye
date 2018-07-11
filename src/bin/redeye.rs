@@ -5,6 +5,7 @@ use tokio::io;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 
+/*
 fn main() {
     let addr = "127.0.0.1:6142".parse().unwrap();
     let listener = TcpListener::bind(&addr).unwrap();
@@ -35,4 +36,20 @@ fn main() {
 
     println!("server running on localhost:6142");
     tokio::run(server);
+}
+ */
+
+use redeye::input;
+
+fn main() {
+    let lines = input::stdin_stream()
+        .for_each(|line| {
+            println!("Line: {}", line);
+            Ok(())
+        })
+        .map_err(|err| {
+            println!("Line error: {:?}", err);
+        });
+
+    tokio::run(lines);
 }
