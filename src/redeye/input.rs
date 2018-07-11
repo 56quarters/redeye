@@ -1,9 +1,5 @@
 use std::io::{self, BufReader};
-use tokio::io::{self as tio, AsyncRead, Lines, Stdin};
-
-pub fn stdin_stream() -> Lines<StdinBufReader> {
-    tio::lines(StdinBufReader::new(tio::stdin()))
-}
+use tokio::io::{AsyncRead, Stdin};
 
 pub struct StdinBufReader {
     reader: BufReader<Stdin>,

@@ -2,8 +2,8 @@ extern crate redeye;
 extern crate tokio;
 
 use tokio::io;
-use tokio::net::TcpListener;
 use tokio::prelude::*;
+use redeye::input::StdinBufReader;
 
 /*
 fn main() {
@@ -39,10 +39,10 @@ fn main() {
 }
  */
 
-use redeye::input;
 
 fn main() {
-    let lines = input::stdin_stream()
+    let stdin = StdinBufReader::new(io::stdin());
+    let lines = io::lines(stdin)
         .for_each(|line| {
             println!("Line: {}", line);
             Ok(())
