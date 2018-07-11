@@ -1,9 +1,11 @@
 extern crate redeye;
 extern crate tokio;
 
+use redeye::input::StdinBufReader;
+use std::time::{Duration, Instant};
 use tokio::io;
 use tokio::prelude::*;
-use redeye::input::StdinBufReader;
+use tokio::timer::Interval;
 
 /*
 fn main() {
@@ -39,7 +41,6 @@ fn main() {
 }
  */
 
-
 fn main() {
     let stdin = StdinBufReader::new(io::stdin());
     let lines = io::lines(stdin)
@@ -51,5 +52,16 @@ fn main() {
             println!("Line error: {:?}", err);
         });
 
-    tokio::run(lines);
+    let start = Instant::now() + Duration::from_secs(1);
+    let period = Interval::new(start, Duration::from_secs(1))
+        .for_each(|instant| {
+            println!("Period: {:?}", instant);
+            Ok(())
+        })
+        .map_err(|err| {
+            println!("Period error: {:?}", err);
+        });
+
+    //tokio::run(lines);
+    tokio::run(period);
 }
