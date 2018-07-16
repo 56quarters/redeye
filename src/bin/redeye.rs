@@ -62,6 +62,8 @@ fn main() {
             println!("Period error: {:?}", err);
         });
 
-    //tokio::run(lines);
-    tokio::run(period);
+    let mut runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime.spawn(period);
+    runtime.spawn(lines);
+    runtime.shutdown_on_idle().wait().unwrap();
 }
