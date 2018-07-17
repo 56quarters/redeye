@@ -1,5 +1,5 @@
 use std::io::{self, BufReader};
-use tokio::io::{AsyncRead, Stdin};
+use tokio::io::{stdin, AsyncRead, Stdin};
 
 pub struct StdinBufReader {
     reader: BufReader<Stdin>,
@@ -16,6 +16,12 @@ impl StdinBufReader {
         StdinBufReader {
             reader: BufReader::with_capacity(cap, reader),
         }
+    }
+}
+
+impl Default for StdinBufReader {
+    fn default() -> Self {
+        Self::new(stdin())
     }
 }
 
