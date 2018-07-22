@@ -3,7 +3,6 @@
 
 //!
 
-use futures::Future;
 
 pub struct LineBuffer {
     buf: Vec<String>,

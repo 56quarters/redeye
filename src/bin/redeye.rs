@@ -4,6 +4,7 @@ extern crate tokio;
 
 use futures::sync::mpsc;
 use redeye::input::StdinBufReader;
+use redeye::send::BackpressureSender;
 use std::time::{Duration, Instant};
 use tokio::io;
 use tokio::prelude::*;
@@ -11,17 +12,16 @@ use tokio::timer::Interval;
 
 fn main() {
     let (mut tx, rx) = mpsc::channel::<String>(10);
+    let sender = BackpressureSender::new(tx);
 
     let stdin = StdinBufReader::new(io::stdin());
     let lines = io::lines(stdin)
-        .and_then(move |line| {
-            let r = tx.try_send(line.clone());
-            println!("Send: {:?}", r);
-            Ok(line)
-        })
         .for_each(move |line| {
-            println!("Line: {}", line);
-            Ok(())
+            println!("sending...");
+            sender.send(line).map_err(|err| {
+                println!("Send error (mapping): {:?}", err);
+                std::io::Error::from(std::io::ErrorKind::Other)
+            })
         })
         .map_err(|err| {
             println!("Line error: {:?}", err);
@@ -48,6 +48,6 @@ fn main() {
     let mut runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.spawn(period);
     runtime.spawn(lines);
-    runtime.spawn(receiver);
+    //runtime.spawn(receiver);
     runtime.shutdown_on_idle().wait().unwrap();
 }
