@@ -1,71 +1,84 @@
-extern crate futures;
-extern crate tokio;
+//
+//
+//
+
+//!
 
 use futures::sync::mpsc;
+use std::cell::RefCell;
+use std::fmt::Debug;
+use std::sync::{Arc, Mutex};
 use tokio::prelude::*;
 
-#[derive(Debug)]
-pub enum SendError {
+pub enum RedeyeError {
     Disconnected,
+    Other,
 }
 
-pub struct BackPressureSender<T> where T: Clone {
-    tx: mpsc::Sender<T>
+pub struct BackPressureSender<T>
+where
+    T: Debug + Clone,
+{
+    tx: Arc<Mutex<RefCell<mpsc::Sender<T>>>>,
 }
 
-impl<T> BackPressureSender<T> where T: Clone {
+impl<T> BackPressureSender<T>
+where
+    T: Debug + Clone,
+{
     pub fn new(tx: mpsc::Sender<T>) -> Self {
-        BackPressureSender { tx }
+        BackPressureSender {
+            tx: Arc::new(Mutex::new(RefCell::new(tx))),
+        }
     }
 
     pub fn send(&self, val: T) -> SenderFuture<T> {
-        SenderFuture::new(val, self.tx.clone())
+        SenderFuture::new(self.tx.clone(), val)
     }
 }
 
-pub struct SenderFuture<T> where T: Clone {
+pub struct SenderFuture<T>
+where
+    T: Debug + Clone,
+{
+    tx: Arc<Mutex<RefCell<mpsc::Sender<T>>>>,
     val: T,
-    tx: mpsc::Sender<T>
 }
 
-impl<T> SenderFuture<T> where T: Clone {
-    fn new(val: T, tx: mpsc::Sender<T>) -> Self {
-        SenderFuture { val, tx }
+impl<T> SenderFuture<T>
+where
+    T: Debug + Clone,
+{
+    fn new(tx: Arc<Mutex<RefCell<mpsc::Sender<T>>>>, val: T) -> Self {
+        SenderFuture { tx, val }
     }
 }
 
-impl<T> Future for SenderFuture<T> where T: Clone {
+impl<T> Future for SenderFuture<T>
+where
+    T: Debug + Clone,
+{
     type Item = ();
-    type Error = SendError;
+    type Error = RedeyeError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let ready = self.tx.poll_ready();
-        match ready {
-            Ok(Async::NotReady) => {
-                println!("Not ready!");
-                return Ok(Async::NotReady)
-            }
-            Err(_) => {
-                println!("Disconnected!");
-                return Err(SendError::Disconnected)
-            }
+        let cell = self.tx.lock().unwrap();
+        let mut tx = cell.borrow_mut();
+
+        match tx.poll_ready() {
+            Ok(Async::NotReady) => return Ok(Async::NotReady),
+            Err(_) => return Err(RedeyeError::Disconnected),
             _ => {}
-        }
+        };
 
-        let msg = self.val.clone();
-        match self.tx.try_send(msg) {
-            Ok(_) => {
-                println!("Send OK!");
-                Ok(Async::Ready(()))
-
-            }
+        let val = self.val.clone();
+        match tx.try_send(val) {
+            Ok(_) => Ok(Async::Ready(())),
             Err(e) => {
                 if e.is_full() {
-                    println!("Full!");
                     Ok(Async::NotReady)
                 } else {
-                    println!("Disconnected 2!!");
-                    Err(SendError::Disconnected)
+                    Err(RedeyeError::Other)
                 }
             }
         }
