@@ -9,13 +9,13 @@ pub enum SendError {
     Disconnected,
 }
 
-pub struct BackpressureSender<T> where T: Clone {
+pub struct BackPressureSender<T> where T: Clone {
     tx: mpsc::Sender<T>
 }
 
-impl<T> BackpressureSender<T> where T: Clone {
+impl<T> BackPressureSender<T> where T: Clone {
     pub fn new(tx: mpsc::Sender<T>) -> Self {
-        BackpressureSender { tx }
+        BackPressureSender { tx }
     }
 
     pub fn send(&self, val: T) -> SenderFuture<T> {
