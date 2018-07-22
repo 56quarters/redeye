@@ -6,13 +6,19 @@
 
 use futures::sync::mpsc;
 use std::cell::RefCell;
+use std::io;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use tokio::prelude::*;
 
+#[derive(Fail, Debug)]
 pub enum RedeyeError {
+    #[fail(display = "{}", _0)]
+    IoError(#[cause] io::Error),
+    #[fail(display = "Receiver closed the channel")]
     Disconnected,
-    Other,
+    #[fail(display = "An unknown error occurred")]
+    Unknown,
 }
 
 pub struct BackPressureSender<T>
@@ -78,7 +84,7 @@ where
                 if e.is_full() {
                     Ok(Async::NotReady)
                 } else {
-                    Err(RedeyeError::Other)
+                    Err(RedeyeError::Disconnected)
                 }
             }
         }
