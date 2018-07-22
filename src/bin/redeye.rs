@@ -1,50 +1,25 @@
+extern crate futures;
 extern crate redeye;
 extern crate tokio;
 
+use futures::sync::mpsc;
 use redeye::input::StdinBufReader;
 use std::time::{Duration, Instant};
 use tokio::io;
 use tokio::prelude::*;
 use tokio::timer::Interval;
 
-/*
 fn main() {
-    let addr = "127.0.0.1:6142".parse().unwrap();
-    let listener = TcpListener::bind(&addr).unwrap();
+    let (mut tx, rx) = mpsc::channel::<String>(10);
 
-    let server = listener
-        .incoming()
-        .for_each(|socket| {
-            println!("accepted socket; addr={:?}", socket.peer_addr().unwrap());
-
-            let connection = io::write_all(socket, "hello world\n")
-                .then(|res| {
-                    println!("wrote message; success={:?}", res.is_ok());
-                    Ok(())
-                });
-
-            // Spawn a new task that processes the socket:
-            tokio::spawn(connection);
-
-            Ok(())
-        })
-        .map_err(|err| {
-            // All tasks must have an `Error` type of `()`. This forces error
-            // handling and helps avoid silencing failures.
-            //
-            // In our example, we are only going to log the error to STDOUT.
-            println!("accept error = {:?}", err);
-        });
-
-    println!("server running on localhost:6142");
-    tokio::run(server);
-}
- */
-
-fn main() {
     let stdin = StdinBufReader::new(io::stdin());
     let lines = io::lines(stdin)
-        .for_each(|line| {
+        .and_then(move |line| {
+            let r = tx.try_send(line.clone());
+            println!("Send: {:?}", r);
+            Ok(line)
+        })
+        .for_each(move |line| {
             println!("Line: {}", line);
             Ok(())
         })
@@ -62,8 +37,17 @@ fn main() {
             println!("Period error: {:?}", err);
         });
 
+    let receiver =
+        rx.for_each(|msg| {
+            println!("Message: {}", msg);
+            Ok(())
+        }).map_err(|err| {
+            println!("Message error: {:?}", err);
+        });
+
     let mut runtime = tokio::runtime::Runtime::new().unwrap();
     runtime.spawn(period);
     runtime.spawn(lines);
+    runtime.spawn(receiver);
     runtime.shutdown_on_idle().wait().unwrap();
 }

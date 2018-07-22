@@ -5,6 +5,7 @@ authors = ["Nick Pillitteri <nick@tshlabs.org>"]
 
 [dependencies]
 tokio = "0.1"
+futures = "0.1"
 
 [lib]
 name = "redeye"
