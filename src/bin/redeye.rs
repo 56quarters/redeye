@@ -5,6 +5,7 @@ extern crate tokio;
 use futures::sync::mpsc;
 use redeye::input::StdinBufReader;
 use redeye::send::BackPressureSender;
+use redeye::types::RedeyeError;
 use std::time::{Duration, Instant};
 use tokio::io;
 use tokio::prelude::*;
@@ -16,11 +17,12 @@ fn main() {
     let stdin = StdinBufReader::new(io::stdin());
 
     let lines = io::lines(stdin)
+        .map_err(|err| {
+            RedeyeError::IoError(err)
+        })
         .for_each(move |line| {
             println!("sending...");
-            sender
-                .send(line)
-                .map_err(|_err| std::io::Error::from(std::io::ErrorKind::Other))
+            sender.send(line)
         })
         .map_err(|err| {
             println!("Line error: {:?}", err);
