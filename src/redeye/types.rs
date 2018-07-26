@@ -33,7 +33,7 @@ impl RedeyeError {
         match self {
             &RedeyeError::TimerError(ref err) => err.is_shutdown(),
             &RedeyeError::Disconnected => true,
-            _ => false
+            _ => false,
         }
     }
 }
