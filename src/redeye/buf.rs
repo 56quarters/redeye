@@ -5,6 +5,7 @@
 
 use std::cell::RefCell;
 use std::sync::Mutex;
+use std::mem;
 
 #[derive(Debug)]
 pub struct LineBuffer {
@@ -18,17 +19,15 @@ impl LineBuffer {
         }
     }
 
-    pub fn push(&self, line: String) -> usize {
+    pub fn push(&self, line: String) {
         let cell = self.buf.lock().unwrap();
         let mut buf = cell.borrow_mut();
         buf.push(line);
-        buf.len()
     }
 
-    pub fn flush(&self) {
+    pub fn flush(&self) -> Vec<String> {
         let cell = self.buf.lock().unwrap();
         let mut buf = cell.borrow_mut();
-        println!("Flushing {} entries...", buf.len());
-        buf.clear();
+        mem::replace(&mut buf, Vec::new())
     }
 }

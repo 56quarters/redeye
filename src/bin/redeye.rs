@@ -22,7 +22,7 @@ use tokio::runtime::Runtime;
 use tokio::timer::{Delay, Interval};
 
 #[allow(unused)]
-fn delayed_receiver(rx: mpsc::Receiver<String>, delay: u64) -> impl Future<Item = (), Error = ()> {
+fn delayed_receiver(rx: mpsc::Receiver<String>, delay: u64) -> impl Future<Item=(), Error=()> {
     Delay::new(Instant::now() + Duration::from_secs(delay))
         .map_err(|err| {
             println!("Delay error: {:?}", err);
@@ -37,42 +37,51 @@ fn delayed_receiver(rx: mpsc::Receiver<String>, delay: u64) -> impl Future<Item 
         })
 }
 
+// TODO: Using channels + futures for sending a single line to the buffer seems to
+// be about the same speed as just pushing to the buffer and it uses more CPU. Instead
+// backpressure would be useful when... flushing the buffer to the ES backend?
+
 fn main() {
-    let (tx, rx) = mpsc::channel(1);
-    let sender = BackPressureSender::new(tx);
     let stdin = StdinBufReader::new(io::stdin());
+    let buf = Arc::new(LineBuffer::new());
+    let buf_flush = Arc::clone(&buf);
+    let buf_send = Arc::clone(&buf);
 
     let lines = io::lines(stdin)
         .map_err(|err| RedeyeError::IoError(err))
-        .for_each(move |line| sender.send(line))
+        .for_each(move |line| {
+            buf_send.push(line);
+            Ok(())
+        })
         .map_err(|err| {
             println!("Line error: {:?}", err);
         });
 
-    let buf = Arc::new(LineBuffer::new());
-    let buf_flush = Arc::clone(&buf);
-
+    let (tx, rx) = mpsc::channel(100);
+    let sender = BackPressureSender::new(tx);
     let start = Instant::now() + Duration::from_secs(1);
+
     let period = Interval::new(start, Duration::from_secs(1))
         .map_err(|err| RedeyeError::TimerError(err))
         .for_each(move |_instant| {
-            buf_flush.flush();
-            Ok(())
+            sender.send(buf_flush.flush())
         })
         .map_err(|err| {
             println!("Period error: {:?}", err);
         });
 
-    let buf_send = Arc::clone(&buf);
-
-    let receiver = rx.for_each(move |msg| {
-        buf_send.push(msg);
-        Ok(())
-    });
+    let backend = rx
+        .for_each(|batch| {
+            println!("Received {} entries in backend", batch.len());
+            Ok(())
+        })
+        .map_err(|err| {
+            println!("Backend error: {:?}", err);
+        });
 
     let mut runtime = Runtime::new().unwrap();
     runtime.spawn(period);
     runtime.spawn(lines);
-    runtime.spawn(receiver);
+    runtime.spawn(backend);
     runtime.shutdown_on_idle().wait().unwrap();
 }
