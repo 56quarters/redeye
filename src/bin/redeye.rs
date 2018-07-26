@@ -1,11 +1,20 @@
+//
+//
+//
+//
+
+//!
+
 extern crate futures;
 extern crate redeye;
 extern crate tokio;
 
 use futures::sync::mpsc;
+use redeye::buf::LineBuffer;
 use redeye::input::StdinBufReader;
 use redeye::send::BackPressureSender;
 use redeye::types::RedeyeError;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io;
 use tokio::prelude::*;
@@ -35,27 +44,29 @@ fn main() {
 
     let lines = io::lines(stdin)
         .map_err(|err| RedeyeError::IoError(err))
-        .for_each(move |line| {
-            println!("sending...");
-            sender.send(line)
-        })
+        .for_each(move |line| sender.send(line))
         .map_err(|err| {
             println!("Line error: {:?}", err);
         });
 
+    let buf = Arc::new(LineBuffer::new());
+    let buf_flush = Arc::clone(&buf);
+
     let start = Instant::now() + Duration::from_secs(1);
     let period = Interval::new(start, Duration::from_secs(1))
         .map_err(|err| RedeyeError::TimerError(err))
-        .for_each(|instant| {
-            println!("Period: {:?}", instant);
+        .for_each(move |_instant| {
+            buf_flush.flush();
             Ok(())
         })
         .map_err(|err| {
             println!("Period error: {:?}", err);
         });
 
-    let receiver = rx.for_each(|msg| {
-        println!("Message: {}", msg);
+    let buf_send = Arc::clone(&buf);
+
+    let receiver = rx.for_each(move |msg| {
+        buf_send.push(msg);
         Ok(())
     });
 
