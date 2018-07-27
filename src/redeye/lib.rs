@@ -16,7 +16,8 @@ extern crate serde_derive;
 extern crate tokio;
 
 pub mod buf;
-pub mod enrich;
 pub mod input;
+pub mod parser;
 pub mod send;
+pub mod tasks;
 pub mod types;

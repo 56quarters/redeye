@@ -10,9 +10,9 @@ extern crate redeye;
 extern crate tokio;
 
 use futures::sync::mpsc;
-use redeye::buf::{LogBuffer, NeedFlush};
-use redeye::enrich::LineParser;
+use redeye::buf::LogBuffer;
 use redeye::input::StdinBufReader;
+use redeye::parser::LineParser;
 use redeye::send::BackPressureSender;
 use redeye::types::RedeyeError;
 use std::sync::Arc;
@@ -20,28 +20,7 @@ use std::time::{Duration, Instant};
 use tokio::io;
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
-use tokio::timer::{Delay, Interval};
-
-#[allow(unused)]
-fn delayed_receiver(rx: mpsc::Receiver<String>, delay: u64) -> impl Future<Item = (), Error = ()> {
-    Delay::new(Instant::now() + Duration::from_secs(delay))
-        .map_err(|err| {
-            println!("Delay error: {:?}", err);
-        })
-        .and_then(|_| {
-            rx.for_each(|msg| {
-                println!("Message: {}", msg);
-                Ok(())
-            }).map_err(|err| {
-                println!("Message error: {:?}", err);
-            })
-        })
-}
-
-enum FlushReason {
-    Full,
-    Timer,
-}
+use tokio::timer::Interval;
 
 fn main() {
     let buf_send = Arc::new(LogBuffer::default());

@@ -1,10 +1,10 @@
 use chrono::prelude::*;
+use serde_json;
 use std::collections::HashMap;
 use types::RedeyeResult;
-use serde_json;
 
 const TIMESTAMP_KEY: &str = "@timesamp";
-const LOG_LINE_KEY: &str = "log";
+const LOG_LINE_KEY: &str = "message";
 
 pub struct Enricher {}
 
@@ -21,7 +21,7 @@ impl LineParser {
     }
 
     fn is_json_message(line: &str) -> bool {
-       line.starts_with('{') && line.ends_with('}')
+        line.starts_with('{') && line.ends_with('}')
     }
 
     pub fn parse_line(&self, line: String) -> RedeyeResult<LogMessage> {

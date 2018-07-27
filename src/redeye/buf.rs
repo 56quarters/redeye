@@ -11,6 +11,7 @@ use std::sync::Mutex;
 const DEFAULT_FLUSH_SIZE: usize = 10_000;
 const DEFAULT_BUFFER_SIZE: usize = 128;
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum NeedFlush {
     Yes,
     No,
