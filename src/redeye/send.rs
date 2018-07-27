@@ -61,24 +61,18 @@ where
         let cell = self.tx.lock().unwrap();
         let mut tx = cell.borrow_mut();
 
+        // Use the .poll_ready() / .start_send() combination so that we can avoid
+        // cloning the value we're sending when the send will obviously fail due to
+        // the channel being full. Note that we also don't care about the value we
+        // tried to send if the send fails since it's just a copy.
         match tx.poll_ready() {
-            Ok(Async::NotReady) => return Ok(Async::NotReady),
-            Err(_) => return Err(RedeyeError::Disconnected),
-            _ => {}
-        };
-
-        let val = self.val.clone();
-        match tx.try_send(val) {
-            Ok(_) => Ok(Async::Ready(())),
-            Err(e) => {
-                if e.is_full() {
-                    Ok(Async::NotReady)
-                } else if e.is_disconnected() {
-                    Err(RedeyeError::Disconnected)
-                } else {
-                    Err(RedeyeError::Unknown)
-                }
-            }
+            Err(_) => Err(RedeyeError::Disconnected),
+            Ok(Async::NotReady) => Ok(Async::NotReady),
+            Ok(Async::Ready(_)) => match tx.start_send(self.val.clone()) {
+                Err(e) => Err(RedeyeError::Disconnected),
+                Ok(AsyncSink::NotReady(_)) => Ok(Async::NotReady),
+                Ok(AsyncSink::Ready) => Ok(Async::Ready(())),
+            },
         }
     }
 }
