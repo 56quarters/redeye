@@ -15,14 +15,17 @@ fn main() {
     let out = if let Some(v) = args.nth(1) {
         v
     } else {
-        println!("Need a string to print!");
+        eprintln!("Need a string to print!");
         exit(1);
     };
 
     let delay = if let Some(v) = args.nth(0) {
-        v.parse::<u64>().unwrap()
+        v.parse::<u64>().unwrap_or_else(|e| {
+            eprintln!("Could not parse digit: {}", e);
+            exit(1);
+        })
     } else {
-        println!("Need a delay in milliseconds!");
+        eprintln!("Need a delay in milliseconds!");
         exit(1);
     };
 

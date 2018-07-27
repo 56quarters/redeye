@@ -7,7 +7,7 @@
 use std::io;
 use tokio::timer;
 
-type RedeyeResult<T> = Result<T, RedeyeError>;
+pub type RedeyeResult<T> = Result<T, RedeyeError>;
 
 #[derive(Fail, Debug)]
 pub enum RedeyeError {

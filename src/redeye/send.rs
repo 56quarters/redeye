@@ -29,7 +29,7 @@ where
     }
 
     pub fn send(&self, val: T) -> SenderFuture<T> {
-        SenderFuture::new(self.tx.clone(), val)
+        SenderFuture::new(Arc::clone(&self.tx), val)
     }
 }
 
