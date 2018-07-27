@@ -4,6 +4,7 @@
 
 //!
 
+use serde_json::error::Error as SerdeError;
 use std::io;
 use tokio::timer;
 
@@ -17,11 +18,32 @@ pub enum RedeyeError {
     #[fail(display = "{}", _0)]
     TimerError(#[cause] timer::Error),
 
+    #[fail(display = "{}", _0)]
+    SerializationError(#[cause] SerdeError),
+
     #[fail(display = "Receiver closed the channel")]
     Disconnected,
 
     #[fail(display = "An unknown error occurred")]
     Unknown,
+}
+
+impl From<io::Error> for RedeyeError {
+    fn from(e: io::Error) -> Self {
+        RedeyeError::IoError(e)
+    }
+}
+
+impl From<timer::Error> for RedeyeError {
+    fn from(e: timer::Error) -> Self {
+        RedeyeError::TimerError(e)
+    }
+}
+
+impl From<SerdeError> for RedeyeError {
+    fn from(e: SerdeError) -> Self {
+        RedeyeError::SerializationError(e)
+    }
 }
 
 impl RedeyeError {

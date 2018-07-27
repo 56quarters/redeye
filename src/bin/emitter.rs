@@ -31,6 +31,6 @@ fn main() {
 
     loop {
         println!("{}", out);
-        sleep(Duration::from_millis(delay));
+        sleep(Duration::from_micros(delay));
     }
 }

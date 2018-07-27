@@ -11,6 +11,7 @@ extern crate tokio;
 
 use futures::sync::mpsc;
 use redeye::buf::LogBuffer;
+use redeye::enrich::LineParser;
 use redeye::input::StdinBufReader;
 use redeye::send::BackPressureSender;
 use redeye::types::RedeyeError;
@@ -42,11 +43,14 @@ fn main() {
     let buf = Arc::new(LogBuffer::new());
     let buf_flush = Arc::clone(&buf);
     let buf_send = Arc::clone(&buf);
+    let parser = Arc::new(LineParser::default());
 
     let lines = io::lines(stdin)
-        .map_err(|err| RedeyeError::IoError(err))
+        .map_err(|err| RedeyeError::from(err))
         .for_each(move |line| {
-            buf_send.push(line);
+            let msg = parser.parse_line(line)?;
+            buf_send.push(msg);
+            //buf_send.push(line);
             Ok(())
         })
         .map_err(|err| {
@@ -57,8 +61,8 @@ fn main() {
     let sender = BackPressureSender::new(tx);
     let start = Instant::now() + Duration::from_secs(1);
 
-    let period = Interval::new(start, Duration::from_secs(1))
-        .map_err(|err| RedeyeError::TimerError(err))
+    let period = Interval::new(start, Duration::from_millis(1000))
+        .map_err(|err| RedeyeError::from(err))
         .for_each(move |_instant| sender.send(buf_flush.flush()))
         .map_err(|err| {
             eprintln!("Period error: {:?}", err);
