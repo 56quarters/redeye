@@ -69,7 +69,7 @@ where
             Err(_) => Err(RedeyeError::Disconnected),
             Ok(Async::NotReady) => Ok(Async::NotReady),
             Ok(Async::Ready(_)) => match tx.start_send(self.val.clone()) {
-                Err(e) => Err(RedeyeError::Disconnected),
+                Err(_) => Err(RedeyeError::Disconnected),
                 Ok(AsyncSink::NotReady(_)) => Ok(Async::NotReady),
                 Ok(AsyncSink::Ready) => Ok(Async::Ready(())),
             },
