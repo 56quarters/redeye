@@ -38,8 +38,8 @@ where
             buffer.push(msg);
             Ok(())
         })
-        .map_err(|err| {
-            eprintln!("Line error: {:?}", err);
+        .map_err(|e| {
+            handle_redeye_error(e);
         })
 }
 
@@ -50,8 +50,8 @@ fn new_period_sender(
     Interval::new(Instant::now(), Duration::from_millis(1000))
         .map_err(|err| RedeyeError::from(err))
         .for_each(move |_instant| sender.send(buffer.flush()))
-        .map_err(|err| {
-            eprintln!("Period error: {:?}", err);
+        .map_err(|e| {
+            handle_redeye_error(e);
         })
 }
 
@@ -59,9 +59,15 @@ fn new_backend_task<T>(rx: mpsc::Receiver<Vec<T>>) -> impl Future<Item = (), Err
     rx.for_each(|batch| {
         eprintln!("Received {} entries in backend", batch.len());
         Ok(())
-    }).map_err(|err| {
-        eprintln!("Backend error: {:?}", err);
     })
+}
+
+fn handle_redeye_error(err: RedeyeError) {
+    if err.is_fatal() {
+        panic!("ERROR: Unrecoverable error: {}", err);
+    } else {
+        eprintln!("WARNING: {}", err);
+    }
 }
 
 fn main() {
