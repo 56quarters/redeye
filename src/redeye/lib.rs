@@ -15,7 +15,6 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate tokio;
 
-pub mod buf;
 pub mod input;
 pub mod parser;
 pub mod send;
