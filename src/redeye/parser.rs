@@ -41,7 +41,11 @@ impl CommonLogLineParser {
                 r"([^\s]+)\s+",  // rfc931
                 r"([^\s]+)\s+",  // username
                 r"\[(.+)\]\s+",  // timestamp
-                "\"(.+)\"\\s+",  // request
+                "\"",            // "
+                r"([^\s]+)\s",   // method
+                r"([^\s]+)\s",   // path
+                r"([^\s]+)",     // protocol
+                "\"\\s+",        // "
                 r"([^\s]+)\s+",  // status
                 r"([^\s]+)$",    // bytes
             )).unwrap(),
@@ -60,15 +64,19 @@ impl LogLineParser for CommonLogLineParser {
                 let rfc931 = parse_text_value(&matches, 2, line)?;
                 let username = parse_text_value(&matches, 3, line)?;
                 let timestamp = parse_text_value(&matches, 4, line)?;
-                let request = parse_text_value(&matches, 5, line)?;
-                let status = parse_int_value(&matches, 6, line)?;
-                let bytes = parse_int_value(&matches, 7, line)?;
+                let method = parse_text_value(&matches, 5, line)?;
+                let path = parse_text_value(&matches, 6, line)?;
+                let protocol = parse_text_value(&matches, 7, line)?;
+                let status = parse_int_value(&matches, 8, line)?;
+                let bytes = parse_int_value(&matches, 9, line)?;
 
                 map.insert("remote_host".to_string(), remote_host);
                 map.insert("some_nonsense".to_string(), rfc931);
                 map.insert("username".to_string(), username);
                 map.insert("timestamp".to_string(), timestamp);
-                map.insert("request".to_string(), request);
+                map.insert("method".to_string(), method);
+                map.insert("request_uri".to_string(), path);
+                map.insert("protocol".to_string(), protocol);
                 map.insert("status_code".to_string(), status);
                 map.insert("bytes".to_string(), bytes);
 
