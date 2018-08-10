@@ -10,6 +10,7 @@ extern crate failure;
 #[macro_use]
 extern crate failure_derive;
 extern crate futures;
+extern crate regex;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;

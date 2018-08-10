@@ -21,6 +21,9 @@ pub enum RedeyeError {
     #[fail(display = "{}", _0)]
     SerializationError(#[cause] SerdeError),
 
+    #[fail(display = "Could not parse: {}", _0)]
+    ParseError(String),
+
     #[fail(display = "Receiver closed the channel")]
     Disconnected,
 
