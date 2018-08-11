@@ -15,7 +15,6 @@ use redeye::types::RedeyeError;
 use std::io;
 use tokio::io as tio;
 use tokio::prelude::*;
-use tokio::runtime::Runtime;
 
 fn new_stdin_task<R, P>(reader: R, parser: P) -> impl Future<Item = (), Error = ()>
 where
@@ -25,7 +24,8 @@ where
     tio::lines(reader)
         .map_err(|err| RedeyeError::from(err))
         .for_each(move |msg| {
-            println!("parsed: {:?}", parser.parse(&msg));
+            //println!("parsed: {:?}", parser.parse(&msg));
+            let _ = parser.parse(&msg);
             Ok(())
         }).map_err(|e| {
             handle_redeye_error(e);
@@ -33,18 +33,12 @@ where
 }
 
 fn handle_redeye_error(err: RedeyeError) {
-    if err.is_fatal() {
-        panic!("ERROR: Unrecoverable error: {}", err);
-    } else {
-        eprintln!("WARNING: {}", err);
-    }
+    eprintln!("WARNING: {}", err);
 }
 
 fn main() {
     let parser = CommonLogLineParser::new();
     let lines = new_stdin_task(StdinBufReader::default(), parser);
 
-    let mut runtime = Runtime::new().unwrap();
-    runtime.spawn(lines);
-    runtime.shutdown_on_idle().wait().unwrap();
+    tokio::run(lines);
 }
