@@ -4,6 +4,7 @@
 
 //!
 
+use chrono::format;
 use serde_json::error::Error as SerdeError;
 use std::io;
 use tokio::timer;
@@ -20,6 +21,9 @@ pub enum RedeyeError {
 
     #[fail(display = "{}", _0)]
     SerializationError(#[cause] SerdeError),
+
+    #[fail(display = "{}", _0)]
+    TimestampParseError(#[cause] format::ParseError),
 
     #[fail(display = "Could not parse: {}", _0)]
     ParseError(String),
@@ -46,6 +50,12 @@ impl From<timer::Error> for RedeyeError {
 impl From<SerdeError> for RedeyeError {
     fn from(e: SerdeError) -> Self {
         RedeyeError::SerializationError(e)
+    }
+}
+
+impl From<format::ParseError> for RedeyeError {
+    fn from(e: format::ParseError) -> Self {
+        RedeyeError::TimestampParseError(e)
     }
 }
 

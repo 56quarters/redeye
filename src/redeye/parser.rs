@@ -2,10 +2,12 @@
 //
 //
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use regex::{Captures, Regex};
 use std::collections::HashMap;
 use types::{RedeyeError, RedeyeResult};
+
+const COMMON_LOG_TIMESTAMP: &str = "%d/%b/%Y:%T %z";
 
 pub trait LogLineParser {
     fn parse(&self, line: &str) -> RedeyeResult<LogEvent>;
@@ -13,7 +15,7 @@ pub trait LogLineParser {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogFieldValue {
-    Timestamp(DateTime<Utc>),
+    Timestamp(DateTime<FixedOffset>),
     Text(String),
     Int(u64),
 }
@@ -63,7 +65,7 @@ impl LogLineParser for CommonLogLineParser {
                 let remote_host = parse_text_value(&matches, 1, line)?;
                 let rfc931 = parse_text_value(&matches, 2, line)?;
                 let username = parse_text_value(&matches, 3, line)?;
-                let timestamp = parse_text_value(&matches, 4, line)?;
+                let timestamp = parse_timestamp(&matches, 4, line, COMMON_LOG_TIMESTAMP)?;
                 let request = parse_text_value(&matches, 5, line)?;
                 let method = parse_text_value(&matches, 6, line)?;
                 let path = parse_text_value(&matches, 7, line)?;
@@ -87,9 +89,20 @@ impl LogLineParser for CommonLogLineParser {
     }
 }
 
-fn parse_timestamp(matches: &Captures, index: usize, line: &str) -> () {
+fn parse_timestamp(
+    matches: &Captures,
+    index: usize,
+    line: &str,
+    format: &str,
+) -> RedeyeResult<LogFieldValue> {
+    let field_match = matches
+        .get(index)
+        .ok_or_else(|| RedeyeError::ParseError(line.to_string()))?;
 
-
+    Ok(LogFieldValue::Timestamp(DateTime::parse_from_str(
+        field_match.as_str(),
+        format,
+    )?))
 }
 
 fn parse_text_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<LogFieldValue> {
@@ -112,8 +125,6 @@ fn parse_int_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult
 
     Ok(LogFieldValue::Int(val))
 }
-
-pub struct ExtendedLogLineParser {}
 
 #[cfg(test)]
 mod tests {
