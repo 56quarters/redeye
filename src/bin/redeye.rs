@@ -13,16 +13,16 @@ extern crate tokio;
 use redeye::input::StdinBufReader;
 use redeye::parser::{CommonLogLineParser, LogLineParser};
 use redeye::types::RedeyeError;
-use std::io;
-use tokio::io as tio;
+use std::io::BufRead;
+use tokio::io::lines;
 use tokio::prelude::*;
 
 fn new_stdin_task<R, P>(reader: R, parser: P) -> impl Future<Item = (), Error = ()>
 where
-    R: AsyncRead + io::BufRead,
+    R: AsyncRead + BufRead,
     P: LogLineParser,
 {
-    tio::lines(reader)
+    lines(reader)
         .map_err(|e| RedeyeError::from(e))
         .and_then(move |line| parser.parse(&line))
         .and_then(|event| serde_json::to_string(&event).map_err(|e| RedeyeError::from(e)))
