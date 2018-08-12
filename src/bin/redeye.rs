@@ -35,7 +35,7 @@ where
 }
 
 fn handle_redeye_error(err: RedeyeError) {
-    eprintln!("WARNING: {}", err);
+    eprintln!("redeye: WARNING: {}", err);
 }
 
 fn main() {

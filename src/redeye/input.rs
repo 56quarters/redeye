@@ -4,7 +4,7 @@
 
 //!
 
-use std::io::{self, BufReader};
+use std::io::{self, BufRead, BufReader, Read};
 use tokio::io::{stdin, AsyncRead, Stdin};
 
 pub struct StdinBufReader {
@@ -31,7 +31,7 @@ impl Default for StdinBufReader {
     }
 }
 
-impl io::Read for StdinBufReader {
+impl Read for StdinBufReader {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, io::Error> {
         self.reader.read(buf)
     }
@@ -39,7 +39,7 @@ impl io::Read for StdinBufReader {
 
 impl AsyncRead for StdinBufReader {}
 
-impl io::BufRead for StdinBufReader {
+impl BufRead for StdinBufReader {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         self.reader.fill_buf()
     }
