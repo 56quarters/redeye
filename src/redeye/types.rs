@@ -4,8 +4,10 @@
 
 //!
 
-use chrono::format;
+use chrono::{format, DateTime, FixedOffset};
+use serde::{Serialize, Serializer};
 use serde_json::error::Error as SerdeError;
+use std::collections::HashMap;
 use std::io;
 
 pub type RedeyeResult<T> = Result<T, RedeyeError>;
@@ -43,5 +45,45 @@ impl From<SerdeError> for RedeyeError {
 impl From<format::ParseError> for RedeyeError {
     fn from(e: format::ParseError) -> Self {
         RedeyeError::TimestampParseError(e)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum LogFieldValue {
+    Timestamp(DateTime<FixedOffset>),
+    Text(String),
+    Int(u64),
+}
+
+impl Serialize for LogFieldValue {
+    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+    where
+        S: Serializer,
+    {
+        match *self {
+            LogFieldValue::Timestamp(ref val) => serializer.serialize_str(&val.to_rfc3339()),
+            LogFieldValue::Text(ref val) => serializer.serialize_str(val),
+            LogFieldValue::Int(val) => serializer.serialize_u64(val),
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct LogEvent {
+    values: HashMap<String, LogFieldValue>,
+}
+
+impl Serialize for LogEvent {
+    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+    where
+        S: Serializer,
+    {
+        self.values.serialize(serializer)
+    }
+}
+
+impl From<HashMap<String, LogFieldValue>> for LogEvent {
+    fn from(values: HashMap<String, LogFieldValue>) -> Self {
+        Self { values }
     }
 }

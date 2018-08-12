@@ -11,11 +11,11 @@ extern crate failure;
 extern crate failure_derive;
 extern crate futures;
 extern crate regex;
+extern crate serde;
 extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
 extern crate tokio;
 
 pub mod input;
+pub mod output;
 pub mod parser;
 pub mod types;

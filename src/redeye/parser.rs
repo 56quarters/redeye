@@ -2,33 +2,15 @@
 //
 //
 
-use chrono::{DateTime, FixedOffset};
+use chrono::DateTime;
 use regex::{Captures, Regex};
 use std::collections::HashMap;
-use types::{RedeyeError, RedeyeResult};
+use types::{LogEvent, LogFieldValue, RedeyeError, RedeyeResult};
 
 const COMMON_LOG_TIMESTAMP: &str = "%d/%b/%Y:%T %z";
 
 pub trait LogLineParser {
     fn parse(&self, line: &str) -> RedeyeResult<LogEvent>;
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum LogFieldValue {
-    Timestamp(DateTime<FixedOffset>),
-    Text(String),
-    Int(u64),
-}
-
-#[derive(Debug, Default)]
-pub struct LogEvent {
-    values: HashMap<String, LogFieldValue>,
-}
-
-impl From<HashMap<String, LogFieldValue>> for LogEvent {
-    fn from(values: HashMap<String, LogFieldValue>) -> Self {
-        Self { values }
-    }
 }
 
 pub struct CommonLogLineParser {

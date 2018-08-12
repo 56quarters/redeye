@@ -7,10 +7,11 @@
 
 extern crate futures;
 extern crate redeye;
+extern crate serde_json;
 extern crate tokio;
 
 use redeye::input::StdinBufReader;
-use redeye::parser::{CommonLogLineParser, LogEvent, LogLineParser};
+use redeye::parser::{CommonLogLineParser, LogLineParser};
 use redeye::types::RedeyeError;
 use std::io;
 use tokio::io as tio;
@@ -22,10 +23,11 @@ where
     P: LogLineParser,
 {
     tio::lines(reader)
-        .map_err(|err| RedeyeError::from(err))
-        .for_each(move |msg| {
-            //println!("parsed: {:?}", parser.parse(&msg));
-            let _ = parser.parse(&msg);
+        .map_err(|e| RedeyeError::from(e))
+        .and_then(move |line| parser.parse(&line))
+        .and_then(|event| serde_json::to_string(&event).map_err(|e| RedeyeError::from(e)))
+        .for_each(|json| {
+            println!("{}", json);
             Ok(())
         }).map_err(|e| {
             handle_redeye_error(e);
