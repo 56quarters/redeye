@@ -7,7 +7,6 @@
 
 #[macro_use]
 extern crate clap;
-extern crate futures;
 extern crate redeye;
 extern crate serde_json;
 extern crate tokio;
