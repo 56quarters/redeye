@@ -44,8 +44,9 @@ impl LogLineParser for CommonLogLineParser {
             .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
             .and_then(|matches| {
                 let mut map = HashMap::with_capacity(matches.len());
+
                 let remote_host = parse_text_value(&matches, 1, line)?;
-                let rfc931 = parse_text_value(&matches, 2, line)?;
+                let ident = parse_text_value(&matches, 2, line)?;
                 let username = parse_text_value(&matches, 3, line)?;
                 let timestamp = parse_timestamp(&matches, 4, line, COMMON_LOG_TIMESTAMP)?;
                 let request = parse_text_value(&matches, 5, line)?;
@@ -55,16 +56,45 @@ impl LogLineParser for CommonLogLineParser {
                 let status = parse_int_value(&matches, 9, line)?;
                 let bytes = parse_int_value(&matches, 10, line)?;
 
-                map.insert("remote_host".to_string(), remote_host);
-                map.insert("some_nonsense".to_string(), rfc931);
-                map.insert("username".to_string(), username);
-                map.insert("@timestamp".to_string(), timestamp);
-                map.insert("request_url".to_string(), request);
-                map.insert("method".to_string(), method);
-                map.insert("request_uri".to_string(), path);
-                map.insert("protocol".to_string(), protocol);
-                map.insert("status_code".to_string(), status);
-                map.insert("bytes".to_string(), bytes);
+                if let Some(v) = remote_host {
+                    map.insert("remote_host".to_string(), v);
+                }
+
+                if let Some(v) = ident {
+                    map.insert("ident".to_string(), v);
+                }
+
+                if let Some(v) = username {
+                    map.insert("username".to_string(), v);
+                }
+
+                if let Some(v) = timestamp {
+                    map.insert("@timestamp".to_string(), v);
+                }
+
+                if let Some(v) = request {
+                    map.insert("requested_url".to_string(), v);
+                }
+
+                if let Some(v) = method {
+                    map.insert("method".to_string(), v);
+                }
+
+                if let Some(v) = path {
+                    map.insert("requested_uri".to_string(), v);
+                }
+
+                if let Some(v) = protocol {
+                    map.insert("protocol".to_string(), v);
+                }
+
+                if let Some(v) = status {
+                    map.insert("status_code".to_string(), v);
+                }
+
+                if let Some(v) = bytes {
+                    map.insert("content_length".to_string(), v);
+                }
 
                 Ok(LogEvent::from(map))
             })
@@ -76,36 +106,44 @@ fn parse_timestamp(
     index: usize,
     line: &str,
     format: &str,
-) -> RedeyeResult<LogFieldValue> {
+) -> RedeyeResult<Option<LogFieldValue>> {
     let field_match = matches
         .get(index)
-        .ok_or_else(|| RedeyeError::ParseError(line.to_string()))?;
+        .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
+        .map(|m| m.as_str())
+        .map(|s| if s == "-" { None } else { Some(s) })?;
 
-    Ok(LogFieldValue::Timestamp(DateTime::parse_from_str(
-        field_match.as_str(),
-        format,
-    )?))
+    if let Some(v) = field_match {
+        Ok(Some(LogFieldValue::Timestamp(DateTime::parse_from_str(v, format)?)))
+    } else {
+        Ok(None)
+    }
 }
 
-fn parse_text_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<LogFieldValue> {
-    let field_match = matches
+fn parse_text_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<Option<LogFieldValue>> {
+    matches
         .get(index)
-        .ok_or_else(|| RedeyeError::ParseError(line.to_string()))?;
-
-    Ok(LogFieldValue::Text(field_match.as_str().to_string()))
+        .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
+        .map(|m| m.as_str())
+        .map(|s| if s == "-" { None } else { Some(LogFieldValue::Text(s.to_string())) })
 }
 
-fn parse_int_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<LogFieldValue> {
+fn parse_int_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<Option<LogFieldValue>> {
     let field_match = matches
         .get(index)
-        .ok_or_else(|| RedeyeError::ParseError(line.to_string()))?;
+        .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
+        .map(|m| m.as_str())
+        .map(|s| if s == "-" { None } else { Some(s) })?;
 
-    let val = field_match
-        .as_str()
-        .parse::<u64>()
-        .map_err(|_| RedeyeError::ParseError(line.to_string()))?;
-
-    Ok(LogFieldValue::Int(val))
+    if let Some(v) = field_match {
+        Ok(Some(LogFieldValue::Int(
+            v
+                .parse::<u64>()
+                .map_err(|_| RedeyeError::ParseError(line.to_string()))?
+        )))
+    } else {
+        Ok(None)
+    }
 }
 
 #[cfg(test)]
