@@ -114,21 +114,37 @@ fn parse_timestamp(
         .map(|s| if s == "-" { None } else { Some(s) })?;
 
     if let Some(v) = field_match {
-        Ok(Some(LogFieldValue::Timestamp(DateTime::parse_from_str(v, format)?)))
+        Ok(Some(LogFieldValue::Timestamp(DateTime::parse_from_str(
+            v, format,
+        )?)))
     } else {
         Ok(None)
     }
 }
 
-fn parse_text_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<Option<LogFieldValue>> {
+fn parse_text_value(
+    matches: &Captures,
+    index: usize,
+    line: &str,
+) -> RedeyeResult<Option<LogFieldValue>> {
     matches
         .get(index)
         .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
         .map(|m| m.as_str())
-        .map(|s| if s == "-" { None } else { Some(LogFieldValue::Text(s.to_string())) })
+        .map(|s| {
+            if s == "-" {
+                None
+            } else {
+                Some(LogFieldValue::Text(s.to_string()))
+            }
+        })
 }
 
-fn parse_int_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<Option<LogFieldValue>> {
+fn parse_int_value(
+    matches: &Captures,
+    index: usize,
+    line: &str,
+) -> RedeyeResult<Option<LogFieldValue>> {
     let field_match = matches
         .get(index)
         .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
@@ -137,9 +153,8 @@ fn parse_int_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult
 
     if let Some(v) = field_match {
         Ok(Some(LogFieldValue::Int(
-            v
-                .parse::<u64>()
-                .map_err(|_| RedeyeError::ParseError(line.to_string()))?
+            v.parse::<u64>()
+                .map_err(|_| RedeyeError::ParseError(line.to_string()))?,
         )))
     } else {
         Ok(None)
