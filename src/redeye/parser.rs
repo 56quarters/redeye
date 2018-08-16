@@ -45,60 +45,35 @@ impl LogLineParser for CommonLogLineParser {
             .and_then(|matches| {
                 let mut map = HashMap::with_capacity(matches.len());
 
-                let remote_host = parse_text_value(&matches, 1, line)?;
-                let ident = parse_text_value(&matches, 2, line)?;
-                let username = parse_text_value(&matches, 3, line)?;
-                let timestamp = parse_timestamp(&matches, 4, line, COMMON_LOG_TIMESTAMP)?;
-                let request = parse_text_value(&matches, 5, line)?;
-                let method = parse_text_value(&matches, 6, line)?;
-                let path = parse_text_value(&matches, 7, line)?;
-                let protocol = parse_text_value(&matches, 8, line)?;
-                let status = parse_int_value(&matches, 9, line)?;
-                let bytes = parse_int_value(&matches, 10, line)?;
-
-                if let Some(v) = remote_host {
-                    map.insert("remote_host".to_string(), v);
-                }
-
-                if let Some(v) = ident {
-                    map.insert("ident".to_string(), v);
-                }
-
-                if let Some(v) = username {
-                    map.insert("username".to_string(), v);
-                }
-
-                if let Some(v) = timestamp {
-                    map.insert("@timestamp".to_string(), v);
-                }
-
-                if let Some(v) = request {
-                    map.insert("requested_url".to_string(), v);
-                }
-
-                if let Some(v) = method {
-                    map.insert("method".to_string(), v);
-                }
-
-                if let Some(v) = path {
-                    map.insert("requested_uri".to_string(), v);
-                }
-
-                if let Some(v) = protocol {
-                    map.insert("protocol".to_string(), v);
-                }
-
-                if let Some(v) = status {
-                    map.insert("status_code".to_string(), v);
-                }
-
-                if let Some(v) = bytes {
-                    map.insert("content_length".to_string(), v);
-                }
+                add_field(&mut map, "remote_host", parse_text_value(&matches, 1, line))?;
+                add_field(&mut map, "ident", parse_text_value(&matches, 2, line))?;
+                add_field(&mut map, "username", parse_text_value(&matches, 3, line))?;
+                add_field(&mut map, "@timestamp", parse_timestamp(&matches, 4, line, COMMON_LOG_TIMESTAMP))?;
+                add_field(&mut map, "requested_url", parse_text_value(&matches, 5, line))?;
+                add_field(&mut map, "method", parse_text_value(&matches, 6, line))?;
+                add_field(&mut map, "requested_uri", parse_text_value(&matches, 7, line))?;
+                add_field(&mut map, "protocol", parse_text_value(&matches, 8, line))?;
+                add_field(&mut map, "status_code", parse_int_value(&matches, 9, line))?;
+                add_field(&mut map, "content_length", parse_int_value(&matches, 10, line))?;
 
                 Ok(LogEvent::from(map))
             })
     }
+}
+
+fn add_field<S>(
+    map: &mut HashMap<String, LogFieldValue>,
+    field: S,
+    res: RedeyeResult<Option<LogFieldValue>>,
+) -> RedeyeResult<()>
+    where
+        S: Into<String>,
+{
+    res.map(|o| {
+        if let Some(v) = o {
+            map.insert(field.into(), v);
+        }
+    })
 }
 
 fn parse_timestamp(
@@ -114,9 +89,7 @@ fn parse_timestamp(
         .map(|s| if s == "-" { None } else { Some(s) })?;
 
     if let Some(v) = field_match {
-        Ok(Some(LogFieldValue::Timestamp(DateTime::parse_from_str(
-            v, format,
-        )?)))
+        Ok(Some(LogFieldValue::Timestamp(DateTime::parse_from_str(v, format)?)))
     } else {
         Ok(None)
     }
@@ -131,13 +104,7 @@ fn parse_text_value(
         .get(index)
         .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
         .map(|m| m.as_str())
-        .map(|s| {
-            if s == "-" {
-                None
-            } else {
-                Some(LogFieldValue::Text(s.to_string()))
-            }
-        })
+        .map(|s| if s == "-" { None } else { Some(LogFieldValue::Text(s.to_string()))})
 }
 
 fn parse_int_value(
@@ -152,10 +119,8 @@ fn parse_int_value(
         .map(|s| if s == "-" { None } else { Some(s) })?;
 
     if let Some(v) = field_match {
-        Ok(Some(LogFieldValue::Int(
-            v.parse::<u64>()
-                .map_err(|_| RedeyeError::ParseError(line.to_string()))?,
-        )))
+        let val = v.parse::<u64>().map_err(|_| RedeyeError::ParseError(line.to_string()))?;
+        Ok(Some(LogFieldValue::Int(val)))
     } else {
         Ok(None)
     }
