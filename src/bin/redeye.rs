@@ -13,7 +13,7 @@ extern crate tokio;
 
 use clap::{App, Arg, ArgMatches};
 use redeye::input::StdinBufReader;
-use redeye::parser::{CommonLogLineParser, CombinedLogLineParser, LogLineParser};
+use redeye::parser::{CombinedLogLineParser, CommonLogLineParser, LogLineParser};
 use redeye::types::RedeyeError;
 use std::env;
 use std::io::BufRead;
@@ -64,12 +64,14 @@ where
 {
     lines(reader)
         .map_err(RedeyeError::from)
-        .and_then(move |line| parser.parse(&line))
-        .and_then(|event| serde_json::to_string(&event).map_err(RedeyeError::from))
-        .for_each(move |json| writeln!(writer, "{}", json).map_err(RedeyeError::from))
-        .map_err(|e| {
-            handle_redeye_error(e);
+        .for_each(move |line| {
+            let _ = parser.parse(&line)
+                .and_then(|event| serde_json::to_string(&event).map_err(RedeyeError::from))
+                .and_then(|json| writeln!(writer, "{}", json).map_err(RedeyeError::from))
+                .map_err(|e| handle_redeye_error(e));
+            Ok(())
         })
+        .map_err(|e| handle_redeye_error(e))
 }
 
 fn handle_redeye_error(err: RedeyeError) {
