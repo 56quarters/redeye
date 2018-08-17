@@ -39,19 +39,20 @@ impl CommonLogLineParser {
 
 impl LogLineParser for CommonLogLineParser {
     fn parse(&self, line: &str) -> RedeyeResult<LogEvent> {
-        self.inner.apply(line, |matches, full_line, mut map| {
-            add_field(&mut map, "remote_host", parse_text_value(matches, 1, full_line))?;
-            add_field(&mut map, "ident", parse_text_value(matches, 2, full_line))?;
-            add_field(&mut map, "username", parse_text_value(matches, 3, full_line))?;
-            add_field(&mut map, "@timestamp", parse_timestamp(matches, 4, full_line, COMMON_LOG_TIMESTAMP))?;
-            add_field(&mut map, "requested_url", parse_text_value(matches, 5, full_line))?;
-            add_field(&mut map, "method", parse_text_value(matches, 6, full_line))?;
-            add_field(&mut map, "requested_uri", parse_text_value(matches, 7, full_line))?;
-            add_field(&mut map, "protocol", parse_text_value(matches, 8, full_line))?;
-            add_field(&mut map, "status_code", parse_int_value(matches, 9, full_line))?;
-            add_field(&mut map, "content_length", parse_int_value(matches, 10, full_line))?;
-            Ok(())
-        })
+        let fields = self.inner.apply(line)?
+            .add_text_field("remote_host", 1)?
+            .add_text_field("ident", 2)?
+            .add_text_field("username", 3)?
+            .add_timestamp_field("@timestamp", 4, COMMON_LOG_TIMESTAMP)?
+            .add_text_field("requested_url", 5)?
+            .add_text_field("method", 6)?
+            .add_text_field("requested_uri", 7)?
+            .add_text_field("protocol", 8)?
+            .add_int_field("status_code", 9)?
+            .add_int_field("content_length", 10)?
+            .build();
+
+        Ok(LogEvent::from(fields))
     }
 }
 
@@ -83,28 +84,25 @@ impl CombinedLogLineParser {
 
 impl LogLineParser for CombinedLogLineParser {
     fn parse(&self, line: &str) -> RedeyeResult<LogEvent> {
-        self.inner.apply(line, |matches, full_line, mut map| {
-            add_field(&mut map, "remote_host", parse_text_value(matches, 1, full_line))?;
-            add_field(&mut map, "ident", parse_text_value(matches, 2, full_line))?;
-            add_field(&mut map, "username", parse_text_value(matches, 3, full_line))?;
-            add_field(&mut map, "@timestamp", parse_timestamp(matches, 4, full_line, COMMON_LOG_TIMESTAMP))?;
-            add_field(&mut map, "requested_url", parse_text_value(matches, 5, full_line))?;
-            add_field(&mut map, "method", parse_text_value(matches, 6, full_line))?;
-            add_field(&mut map, "requested_uri", parse_text_value(matches, 7, full_line))?;
-            add_field(&mut map, "protocol", parse_text_value(matches, 8, full_line))?;
-            add_field(&mut map, "status_code", parse_int_value(matches, 9, full_line))?;
-            add_field(&mut map, "content_length", parse_int_value(matches, 10, full_line))?;
 
-            let mut headers = HashMap::with_capacity(2);
-            add_field(&mut headers, "referer" /* [sic] */, parse_text_value(matches, 11, full_line))?;
-            add_field(&mut headers, "user-agent", parse_text_value(matches, 12, full_line))?;
+        let fields = self.inner.apply(line)?
+            .add_text_field("remote_host", 1)?
+            .add_text_field("ident", 2)?
+            .add_text_field("username", 3)?
+            .add_timestamp_field("@timestamp", 4, COMMON_LOG_TIMESTAMP)?
+            .add_text_field("requested_url", 5)?
+            .add_text_field("method", 6)?
+            .add_text_field("requested_uri", 7)?
+            .add_text_field("protocol", 8)?
+            .add_int_field("status_code", 9)?
+            .add_int_field("content_length", 10)?
+            .add_mapping_field("request_headers")
+            .add_text_field("referer", 11)?
+            .add_text_field("user-agent", 12)?
+            .build_mapping()
+            .build();
 
-            if !headers.is_empty() {
-                map.insert("request_headers".to_string(), LogFieldValue::Mapping(headers));
-            }
-
-            Ok(())
-        })
+        Ok(LogEvent::from(fields))
     }
 }
 
@@ -117,40 +115,131 @@ impl InnerParser {
         Self { regex }
     }
 
-    fn apply<F>(&self, line: &str, func: F) -> RedeyeResult<LogEvent>
-        where
-            F: FnOnce(&Captures, &str, &mut HashMap<String, LogFieldValue>) -> RedeyeResult<()>,
+    fn apply<'a, 'b>(&'a self, line: &'b str) -> RedeyeResult<InnerParseOutput>
+    where
+        'b: 'a
     {
         self.regex
             .captures(line.trim())
             .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
-            .and_then(|matches| {
-                let mut map = HashMap::with_capacity(matches.len());
-                func(&matches, line, &mut map)?;
-                Ok(LogEvent::from(map))
+            .map(|matches| {
+                InnerParseOutput::from(line, matches)
             })
     }
 }
 
-struct InnerParseOutput<'a> {
-    captures: &'a Captures<'a>,
-    output: &'a mut HashMap<String, LogFieldValue>,
+struct MappingBuilder<'a> {
+    field: String,
+    values: HashMap<String, LogFieldValue>,
+    output: InnerParseOutput<'a>,
 }
 
-fn add_field<S>(
-    map: &mut HashMap<String, LogFieldValue>,
-    field: S,
-    res: RedeyeResult<Option<LogFieldValue>>,
-) -> RedeyeResult<()>
-    where
-        S: Into<String>,
-{
-    res.map(|o| {
-        if let Some(v) = o {
-            map.insert(field.into(), v);
+impl<'a> MappingBuilder<'a> {
+    fn add_text_field<S>(mut self, field: S, index: usize) -> RedeyeResult<Self>
+        where S: Into<String>
+    {
+        let res = parse_text_value(&self.output.captures, index, self.output.line)?;
+        if let Some(v) = res {
+            self.values.insert(field.into(), v);
         }
-    })
+
+        Ok(self)
+
+    }
+    fn add_timestamp_field<S>(mut self, field: S, index: usize, format: &str) -> RedeyeResult<Self>
+        where S: Into<String>
+    {
+        let res = parse_timestamp(&self.output.captures, index, self.output.line, format)?;
+        if let Some(v) = res {
+            self.values.insert(field.into(), v);
+        }
+
+        Ok(self)
+    }
+    fn add_int_field<S>(mut self, field: S, index: usize) -> RedeyeResult<Self>
+        where S: Into<String>
+    {
+        let res = parse_int_value(&self.output.captures, index, self.output.line)?;
+        if let Some(v) = res {
+            self.values.insert(field.into(), v);
+        }
+
+        Ok(self)
+    }
+
+    fn build_mapping(mut self) -> InnerParseOutput<'a> {
+        if !self.values.is_empty() {
+            self.output.values.insert(self.field, LogFieldValue::Mapping(self.values));
+        }
+
+        self.output
+    }
 }
+
+struct InnerParseOutput<'a> {
+    values: HashMap<String, LogFieldValue>,
+    line: &'a str,
+    captures: Captures<'a>,
+}
+
+impl<'a> InnerParseOutput<'a> {
+    fn from(line: &'a str, captures: Captures<'a>) -> Self {
+        let len = captures.len();
+        Self {
+            captures,
+            line,
+            values: HashMap::with_capacity(len),
+        }
+    }
+
+    fn add_text_field<S>(mut self, field: S, index: usize) -> RedeyeResult<Self>
+        where S: Into<String>
+    {
+        let res = parse_text_value(&self.captures, index, self.line)?;
+        if let Some(v) = res {
+            self.values.insert(field.into(), v);
+        }
+
+        Ok(self)
+
+    }
+    fn add_timestamp_field<S>(mut self, field: S, index: usize, format: &str) -> RedeyeResult<Self>
+        where S: Into<String>
+    {
+        let res = parse_timestamp(&self.captures, index, self.line, format)?;
+        if let Some(v) = res {
+            self.values.insert(field.into(), v);
+        }
+
+        Ok(self)
+    }
+    fn add_int_field<S>(mut self, field: S, index: usize) -> RedeyeResult<Self>
+        where S: Into<String>
+    {
+        let res = parse_int_value(&self.captures, index, self.line)?;
+        if let Some(v) = res {
+            self.values.insert(field.into(), v);
+        }
+
+        Ok(self)
+    }
+
+    fn add_mapping_field<S>(self, field: S) -> MappingBuilder<'a>
+    where
+    S: Into<String>
+    {
+        MappingBuilder {
+            field: field.into(),
+            values: HashMap::new(),
+            output: self,
+        }
+    }
+
+    fn build(self) -> HashMap<String, LogFieldValue> {
+        self.values
+    }
+}
+
 
 fn parse_timestamp(
     matches: &Captures,
