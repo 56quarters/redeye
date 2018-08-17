@@ -48,8 +48,9 @@ impl From<format::ParseError> for RedeyeError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LogFieldValue {
+    Mapping(HashMap<String, LogFieldValue>),
     Timestamp(DateTime<FixedOffset>),
     Text(String),
     Int(u64),
@@ -61,6 +62,7 @@ impl Serialize for LogFieldValue {
         S: Serializer,
     {
         match *self {
+            LogFieldValue::Mapping(ref map) => map.serialize(serializer),
             LogFieldValue::Timestamp(ref val) => serializer.serialize_str(&val.to_rfc3339()),
             LogFieldValue::Text(ref val) => serializer.serialize_str(val),
             LogFieldValue::Int(val) => serializer.serialize_u64(val),

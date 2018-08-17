@@ -13,7 +13,7 @@ extern crate tokio;
 
 use clap::{App, Arg, ArgMatches};
 use redeye::input::StdinBufReader;
-use redeye::parser::{CommonLogLineParser, LogLineParser};
+use redeye::parser::{CommonLogLineParser, CombinedLogLineParser, LogLineParser};
 use redeye::types::RedeyeError;
 use std::env;
 use std::io::BufRead;
@@ -49,18 +49,17 @@ fn parse_cli_opts<'a>(args: Vec<String>) -> ArgMatches<'a> {
                     "Parse log entries assuming the Combined log format. Entries \
                      that don't match this format will be discarded and a warning \
                      will be printed to stderr.",
-                ).conflicts_with_all(&["combined-format"]),
+                ).conflicts_with_all(&["common-format"]),
         ).get_matches_from(args)
 }
 
-fn new_parser_task<R, P, W>(
+fn new_parser_task<R, W>(
     reader: R,
-    parser: P,
+    parser: Box<LogLineParser + Send + Sync>,
     mut writer: W,
 ) -> impl Future<Item = (), Error = ()>
 where
     R: AsyncRead + BufRead,
-    P: LogLineParser,
     W: AsyncWrite,
 {
     lines(reader)
@@ -81,10 +80,10 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let matches = parse_cli_opts(args);
 
-    let parser = if matches.is_present("common-format") {
-        CommonLogLineParser::new()
+    let parser: Box<LogLineParser + Send + Sync> = if matches.is_present("common-format") {
+        Box::new(CommonLogLineParser::new())
     } else if matches.is_present("combined-format") {
-        unimplemented!();
+        Box::new(CombinedLogLineParser::new())
     } else {
         eprintln!("redeye: ERROR: Log input format must be specified");
         process::exit(1);
