@@ -159,12 +159,7 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    fn leaf(
-        line: &'a str,
-        captures: Rc<Captures<'a>>,
-        field: String,
-        parent: Box<ParserState<'a>>,
-    ) -> Self {
+    fn leaf(line: &'a str, captures: Rc<Captures<'a>>, field: String, parent: Box<ParserState<'a>>) -> Self {
         ParserState {
             line,
             captures,
@@ -185,6 +180,7 @@ impl<'a> ParserState<'a> {
 
         Ok(self)
     }
+
     fn add_timestamp_field<S>(mut self, field: S, index: usize, format: &str) -> RedeyeResult<Self>
     where
         S: Into<String>,
@@ -196,6 +192,7 @@ impl<'a> ParserState<'a> {
 
         Ok(self)
     }
+
     fn add_int_field<S>(mut self, field: S, index: usize) -> RedeyeResult<Self>
     where
         S: Into<String>,
@@ -235,17 +232,12 @@ impl<'a> ParserState<'a> {
     }
 }
 
-fn parse_timestamp(
-    matches: &Captures,
-    index: usize,
-    line: &str,
-    format: &str,
-) -> RedeyeResult<Option<LogFieldValue>> {
+fn parse_timestamp(matches: &Captures, index: usize, line: &str, format: &str) -> RedeyeResult<Option<LogFieldValue>> {
     let field_match = matches
         .get(index)
         .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
         .map(|m| m.as_str())
-        .map(|s| if s == "-" { None } else { Some(s) })?;
+        .map(empty_field)?;
 
     if let Some(v) = field_match {
         Ok(Some(LogFieldValue::Timestamp(DateTime::parse_from_str(v, format)?)))
@@ -254,44 +246,36 @@ fn parse_timestamp(
     }
 }
 
-fn parse_text_value(
-    matches: &Captures,
-    index: usize,
-    line: &str,
-) -> RedeyeResult<Option<LogFieldValue>> {
+fn parse_text_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<Option<LogFieldValue>> {
     matches
         .get(index)
         .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
         .map(|m| m.as_str())
-        .map(|s| if s == "-" { None } else { Some(LogFieldValue::Text(s.to_string()))})
+        .map(empty_field)
+        .map(|o| o.map(|s| LogFieldValue::Text(s.to_string())))
 }
 
-fn parse_int_value(
-    matches: &Captures,
-    index: usize,
-    line: &str,
-) -> RedeyeResult<Option<LogFieldValue>> {
+fn parse_int_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<Option<LogFieldValue>> {
     let field_match = matches
         .get(index)
         .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
         .map(|m| m.as_str())
-        .map(|s| if s == "-" { None } else { Some(s) })?;
+        .map(empty_field)?;
 
     if let Some(v) = field_match {
-        let val = v.parse::<u64>().map_err(|_| RedeyeError::ParseError(line.to_string()))?;
+        let val = v
+            .parse::<u64>()
+            .map_err(|_| RedeyeError::ParseError(line.to_string()))?;
         Ok(Some(LogFieldValue::Int(val)))
     } else {
         Ok(None)
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{CommonLogLineParser, LogLineParser};
-
-    #[test]
-    fn test_common_log_line_parser() {
-        let parser = CommonLogLineParser::new();
-        println!("Res: {:?}", parser.parse("125.125.125.125 - dsmith [10/Oct/1999:21:15:05 +0500] \"GET /index.html HTTP/1.0\" 200 1043"));
+fn empty_field(val: &str) -> Option<&str> {
+    if val == "-" {
+        None
+    } else {
+        Some(val)
     }
 }
