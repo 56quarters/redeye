@@ -126,10 +126,7 @@ impl InnerParser {
         Self { regex }
     }
 
-    fn apply<'a, 'b>(&'a self, line: &'b str) -> RedeyeResult<ParserState>
-    where
-        'b: 'a,
-    {
+    fn apply<'a>(&'a self, line: &'a str) -> RedeyeResult<ParserState> {
         self.regex
             .captures(line.trim())
             .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
