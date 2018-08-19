@@ -2,6 +2,8 @@
 //
 //
 
+//!
+
 use chrono::DateTime;
 use regex::{Captures, Regex};
 use std::collections::HashMap;
@@ -16,13 +18,13 @@ pub trait LogLineParser {
 
 #[derive(Debug, Clone)]
 pub struct CommonLogLineParser {
-    inner: InnerParser,
+    inner: ParserImpl,
 }
 
 impl CommonLogLineParser {
     pub fn new() -> Self {
         Self {
-            inner: InnerParser::new(
+            inner: ParserImpl::new(
                 Regex::new(concat!(
                     r"^([^\s]+)\s+", // host
                     r"([^\s]+)\s+",  // rfc931 ident
@@ -64,13 +66,13 @@ impl LogLineParser for CommonLogLineParser {
 
 #[derive(Debug, Clone)]
 pub struct CombinedLogLineParser {
-    inner: InnerParser,
+    inner: ParserImpl,
 }
 
 impl CombinedLogLineParser {
     pub fn new() -> Self {
         Self {
-            inner: InnerParser::new(
+            inner: ParserImpl::new(
                 Regex::new(concat!(
                     r"^([^\s]+)\s+",    // host
                     r"([^\s]+)\s+",     // rfc931 ident
@@ -116,38 +118,48 @@ impl LogLineParser for CombinedLogLineParser {
     }
 }
 
+/// Regex-based parser for constructing logging events from an access log.
+///
+/// The provided regular expression is applied and log line and a builder is
+/// returned that is used to parse captured values and build up a `HashMap`
+/// of fields and values.
 #[derive(Debug, Clone)]
-struct InnerParser {
+struct ParserImpl {
     regex: Regex,
 }
 
-impl InnerParser {
+impl ParserImpl {
     fn new(regex: Regex) -> Self {
         Self { regex }
     }
 
-    fn apply<'a>(&'a self, line: &'a str) -> RedeyeResult<ParserState> {
+    fn apply<'a>(&'a self, line: &'a str) -> RedeyeResult<FieldBuilder> {
         self.regex
             .captures(line.trim())
             .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
-            .map(|matches| ParserState::root(line, matches))
+            .map(|matches| FieldBuilder::root(line, matches))
     }
 }
 
+/// Builder for constructing a `HashMap` of fields and values based
+/// on the results of parsing log values from the provided `Captures`
+/// object.
 #[derive(Debug)]
-struct ParserState<'a> {
+struct FieldBuilder<'a> {
     line: &'a str,
     captures: Rc<Captures<'a>>,
     field: Option<String>,
-    parent: Option<Box<ParserState<'a>>>,
+    parent: Option<Box<FieldBuilder<'a>>>,
     values: HashMap<String, LogFieldValue>,
 }
 
-impl<'a> ParserState<'a> {
+impl<'a> FieldBuilder<'a> {
+    /// Create a new root field builder for parsing fields from the given
+    /// `regex::Captures` object.
     fn root(line: &'a str, captures: Captures<'a>) -> Self {
         let len = captures.len();
 
-        ParserState {
+        FieldBuilder {
             line,
             captures: Rc::new(captures),
             field: None,
@@ -156,8 +168,11 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    fn leaf(line: &'a str, captures: Rc<Captures<'a>>, field: String, parent: Box<ParserState<'a>>) -> Self {
-        ParserState {
+    /// Create a nested field builder object for parsing fields from the
+    /// given `regex::Captures` object and parent builder that control will
+    /// be returned to when `.complete_mapping()` is called.
+    fn leaf(line: &'a str, captures: Rc<Captures<'a>>, field: String, parent: Box<FieldBuilder<'a>>) -> Self {
+        FieldBuilder {
             line,
             captures,
             field: Some(field),
@@ -166,6 +181,9 @@ impl<'a> ParserState<'a> {
         }
     }
 
+    /// Parse the text value in position `index` and output the field
+    /// using the given name. Return an error if the value could not be
+    /// parsed.
     fn add_text_field<S>(mut self, field: S, index: usize) -> RedeyeResult<Self>
     where
         S: Into<String>,
@@ -178,6 +196,8 @@ impl<'a> ParserState<'a> {
         Ok(self)
     }
 
+    /// Parse the timestamp value in position `index` and output the field
+    /// using the given name. Return an error if the value could not be parsed.
     fn add_timestamp_field<S>(mut self, field: S, index: usize, format: &str) -> RedeyeResult<Self>
     where
         S: Into<String>,
@@ -190,6 +210,8 @@ impl<'a> ParserState<'a> {
         Ok(self)
     }
 
+    /// Parse the integer value in position `index` and output the field
+    /// using the given name. Return an error if the value could be parsed.
     fn add_int_field<S>(mut self, field: S, index: usize) -> RedeyeResult<Self>
     where
         S: Into<String>,
@@ -202,14 +224,20 @@ impl<'a> ParserState<'a> {
         Ok(self)
     }
 
+    /// Return a new `FieldBuilder` that will be used to construct a nested
+    /// mapping value and will be output using the given name. Note that callers
+    /// must also make a corresponding call to `.complete_mapping()` after adding
+    /// all desired values to the nested mapping.
     fn add_mapping_field<S>(self, field: S) -> Self
     where
         S: Into<String>,
     {
         let parent = Box::new(self);
-        ParserState::leaf(parent.line, parent.captures.clone(), field.into(), parent)
+        FieldBuilder::leaf(parent.line, parent.captures.clone(), field.into(), parent)
     }
 
+    /// Complete adding fields to a nested mapping value and return the original
+    /// `FieldBuilder` instance to continue working on the previous set of fields.
     fn complete_mapping(self) -> Self {
         // Unwraps are OK here because if we're calling this method when not building
         // a nested mapping, that's a bug completely within our control and panicking
@@ -224,11 +252,19 @@ impl<'a> ParserState<'a> {
         *parent
     }
 
+    /// Complete parsing and build fields and return a `HashMap` of the values.
     fn build(self) -> HashMap<String, LogFieldValue> {
         self.values
     }
 }
 
+/// Parse the regex capture identified by `index into a timestamp with
+/// a fixed offset.
+///
+/// Return an error if the capture was missing (the field didn't exist
+/// at all, which is not the same as being empty, aka `-`) or the field
+/// could not be parsed into a timestamp. Return `Ok(None)` if the field
+/// exists but contains an empty value (`-`).
 fn parse_timestamp(matches: &Captures, index: usize, line: &str, format: &str) -> RedeyeResult<Option<LogFieldValue>> {
     let field_match = matches
         .get(index)
@@ -243,6 +279,11 @@ fn parse_timestamp(matches: &Captures, index: usize, line: &str, format: &str) -
     }
 }
 
+/// Parse the regex capture identified by `index` into a string value.
+///
+/// Return an error if the capture was missing (the field didn't exist
+/// at all, which is not the same as being empty, aka `-`). Return
+/// `Ok(None)` if the field exists but contains an empty value (`-`).
 fn parse_text_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<Option<LogFieldValue>> {
     matches
         .get(index)
@@ -252,6 +293,12 @@ fn parse_text_value(matches: &Captures, index: usize, line: &str) -> RedeyeResul
         .map(|o| o.map(|s| LogFieldValue::Text(s.to_string())))
 }
 
+/// Parse the regex capture identified by `index` into an integer value.
+///
+/// Return an error if the capture was missing (the field didn't exist
+/// at all, which is not the same as being empty, aka `-`) or the field
+/// could not be parsed into an integer. Return `Ok(None)` if the field
+/// exists but contains an empty value (`-`).
 fn parse_int_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<Option<LogFieldValue>> {
     let field_match = matches
         .get(index)
@@ -269,6 +316,7 @@ fn parse_int_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult
     }
 }
 
+/// Convert the "-" character that represents empty fields
 fn empty_field(val: &str) -> Option<&str> {
     if val == "-" {
         None

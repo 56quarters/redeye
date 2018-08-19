@@ -7,6 +7,8 @@
 use std::io::{self, BufRead, BufReader, Read};
 use tokio::io::{stdin, AsyncRead, Stdin};
 
+/// `AsyncRead` implementation for standard input that supports
+/// buffering and can be used for line-by-line reading of input.
 pub struct StdinBufReader {
     reader: BufReader<Stdin>,
 }
