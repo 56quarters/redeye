@@ -53,10 +53,13 @@ fn parse_cli_opts<'a>(args: Vec<String>) -> ArgMatches<'a> {
         ).get_matches_from(args)
 }
 
-fn new_parser_task<R, P, W>(reader: R, parser: Box<P>, mut writer: W) -> impl Future<Item = (), Error = ()>
+fn new_parser_task<R, W>(
+    reader: R,
+    parser: Box<LogLineParser + Send + Sync>,
+    mut writer: W,
+) -> impl Future<Item = (), Error = ()>
 where
     R: AsyncRead + BufRead,
-    P: LogLineParser + Send + Sync,
     W: AsyncWrite,
 {
     lines(reader)
