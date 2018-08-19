@@ -210,7 +210,7 @@ impl<'a> ParserState<'a> {
         ParserState::leaf(parent.line, parent.captures.clone(), field.into(), parent)
     }
 
-    fn complete_mapping(self) -> Box<Self> {
+    fn complete_mapping(self) -> Self {
         // Unwraps are OK here because if we're calling this method when not building
         // a nested mapping, that's a bug completely within our control and panicking
         // is the most obvious way to handle it.
@@ -221,7 +221,7 @@ impl<'a> ParserState<'a> {
                 .insert(self.field.unwrap(), LogFieldValue::Mapping(self.values));
         }
 
-        parent
+        *parent
     }
 
     fn build(self) -> HashMap<String, LogFieldValue> {
