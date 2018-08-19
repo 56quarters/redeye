@@ -233,7 +233,7 @@ impl<'a> FieldBuilder<'a> {
     }
 
     /// Parse the integer value in position `index` and output the field
-    /// using the given name. Return an error if the value could be parsed.
+    /// using the given name. Return an error if the value could not be parsed.
     fn add_int_field<S>(mut self, field: S, index: usize) -> RedeyeResult<Self>
     where
         S: Into<String>,
