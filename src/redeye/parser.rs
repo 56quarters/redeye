@@ -11,8 +11,22 @@ use std::rc::Rc;
 use types::{LogEvent, LogFieldValue, RedeyeError, RedeyeResult};
 
 const COMMON_LOG_TIMESTAMP: &str = "%d/%b/%Y:%T %z";
+const OUTPUT_VERSION: &str = "1";
 
+/// Parse a single log line of a pre-determined format into an object
+/// suitable for being serialized into Logstash compatible JSON.
+///
+/// Implementations ignore leading and trailing whitespace and will
+/// remove it before attempting to parse a line.
 pub trait LogLineParser {
+    /// Parse the given log line into a `LogEvent`.
+    ///
+    /// Return an error if the line does not match the expected format
+    /// (implementation defined) or if a field in the line does not match
+    /// the expected type (also implementation defined).
+    ///
+    /// The fields of the `LogEvent` object should match the names expected
+    /// by [Logstash](https://github.com/logstash/logstash-logback-encoder#standard-fields).
     fn parse(&self, line: &str) -> RedeyeResult<LogEvent>;
 }
 
@@ -45,12 +59,14 @@ impl CommonLogLineParser {
 
 impl LogLineParser for CommonLogLineParser {
     fn parse(&self, line: &str) -> RedeyeResult<LogEvent> {
+        let line = line.trim();
+
         let fields = self
             .inner
             .apply(line)?
             .add_text_field("remote_host", 1)?
             .add_text_field("ident", 2)?
-            .add_text_field("username", 3)?
+            .add_text_field("remote_user", 3)?
             .add_timestamp_field("@timestamp", 4, COMMON_LOG_TIMESTAMP)?
             .add_text_field("requested_url", 5)?
             .add_text_field("method", 6)?
@@ -58,6 +74,8 @@ impl LogLineParser for CommonLogLineParser {
             .add_text_field("protocol", 8)?
             .add_int_field("status_code", 9)?
             .add_int_field("content_length", 10)?
+            .add_fixed_value("@version", OUTPUT_VERSION)
+            .add_fixed_value("message", line)
             .build();
 
         Ok(LogEvent::from(fields))
@@ -95,12 +113,14 @@ impl CombinedLogLineParser {
 
 impl LogLineParser for CombinedLogLineParser {
     fn parse(&self, line: &str) -> RedeyeResult<LogEvent> {
+        let line = line.trim();
+
         let fields = self
             .inner
             .apply(line)?
             .add_text_field("remote_host", 1)?
             .add_text_field("ident", 2)?
-            .add_text_field("username", 3)?
+            .add_text_field("remote_user", 3)?
             .add_timestamp_field("@timestamp", 4, COMMON_LOG_TIMESTAMP)?
             .add_text_field("requested_url", 5)?
             .add_text_field("method", 6)?
@@ -112,6 +132,8 @@ impl LogLineParser for CombinedLogLineParser {
             .add_text_field("referer", 11)?
             .add_text_field("user_agent", 12)?
             .complete_mapping()
+            .add_fixed_value("@version", OUTPUT_VERSION)
+            .add_fixed_value("message", line)
             .build();
 
         Ok(LogEvent::from(fields))
@@ -135,7 +157,7 @@ impl ParserImpl {
 
     fn apply<'a>(&'a self, line: &'a str) -> RedeyeResult<FieldBuilder> {
         self.regex
-            .captures(line.trim())
+            .captures(line)
             .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
             .map(|matches| FieldBuilder::root(line, matches))
     }
@@ -222,6 +244,16 @@ impl<'a> FieldBuilder<'a> {
         }
 
         Ok(self)
+    }
+
+    /// Add a literal string value and output the field using the given name.
+    fn add_fixed_value<K, V>(mut self, field: K, value: V) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        self.values.insert(field.into(), LogFieldValue::Text(value.into()));
+        self
     }
 
     /// Return a new `FieldBuilder` that will be used to construct a nested
