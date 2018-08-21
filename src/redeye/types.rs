@@ -70,7 +70,7 @@ impl Serialize for LogFieldValue {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogEvent {
     values: HashMap<String, LogFieldValue>,
 }
