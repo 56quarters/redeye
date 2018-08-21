@@ -79,7 +79,6 @@ pub trait LogLineParser {
 ///
 /// # Example
 ///
-///
 /// ```rust
 /// use redeye::parser::{LogLineParser, CommonLogLineParser};
 /// use redeye::types::LogFieldValue;
@@ -88,11 +87,14 @@ pub trait LogLineParser {
 /// let event = parser.parse("127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] \"GET /index.html HTTP/1.0\" 200 2326").unwrap();
 /// let fields = event.fields();
 /// let request = fields.get("requested_url").unwrap();
+/// let status = fields.get("status_code").unwrap();
 ///
 /// assert_eq!(
 ///     &LogFieldValue::Text("GET /index.html HTTP/1.0".to_string()),
 ///     request
 /// );
+///
+/// assert_eq!(&LogFieldValue::Int(200), status);
 /// ```
 #[derive(Debug, Clone)]
 pub struct CommonLogLineParser {
@@ -146,6 +148,82 @@ impl LogLineParser for CommonLogLineParser {
     }
 }
 
+/// Implementation of a `LogLineParser` that parses access logs in the
+/// NCSA Combined Log Format into an object suitable for being serialized
+/// into Logstash compatible JSON.
+///
+/// This format is nearly identical to the Common Log Format except for the
+/// addition of two extra fields: The referrer (spelled as "referer") and
+/// the user agent.
+///
+/// An example of the Common Log Format and the resulting fields that will
+/// be parsed by this implementation are given below.
+///
+/// # Logs
+///
+/// An example of a log line in this format is given below.
+///
+/// ```text
+/// 127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] "GET /index.html HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"
+/// ```
+///
+/// In this log line, the fields of a parsed `LogEvent` object would be
+/// (in JSON).
+///
+/// ```json
+/// {
+///   "remote_host": "127.0.0.1",
+///   "remote_user": "frank",
+///   "@timestamp": "2000-10-10T13:55:36-07:00",
+///   "requested_url": "GET /index.html HTTP/1.0",
+///   "method": "GET",
+///   "requested_uri": "/index.html",
+///   "protocol": "HTTP/1.0",
+///   "status_code": 200,
+///   "content_length": 2326,
+///   "request_headers": {
+///     "referer": "http://www.example.com/start.html",
+///     "user_agent": "Mozilla/4.08 [en] (Win98; I ;Nav)"
+///   },
+///   "@version": "1",
+///   "message": "127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] \"GET /index.html HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\""
+/// }
+/// ```
+///
+/// Some things to note about this example:
+/// * The request portion of the log line has been parsed into method, path,
+///   and protocol components.
+/// * The second field (the "-" in the original log line) has been omitted
+///   because the "-" represents a missing value.
+/// * The timestamp field has a `@` prefix because it has special meaning
+///   to Logstash.
+/// * The extra fields come from request headers and so are in a nested object.
+/// * The field `@version` has been added and has special meaning to Logstash.
+/// * The field `message` contains the entire original log line.
+///
+/// See the [Apache docs](https://httpd.apache.org/docs/current/logs.html#accesslog)
+/// for the specifics of the log line format.
+///
+/// # Example
+///
+/// ```rust
+/// use redeye::parser::{LogLineParser, CombinedLogLineParser};
+/// use redeye::types::LogFieldValue;
+///
+/// let parser = CombinedLogLineParser::new();
+/// let event = parser.parse("127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] \"GET /index.html HTTP/1.0\" 200 2326 \"http://www.example.com/start.html\" \"Mozilla/4.08 [en] (Win98; I ;Nav)\"").unwrap();
+/// let fields = event.fields();
+/// let request_headers = fields.get("request_headers").unwrap();
+/// let headers = match request_headers {
+///     LogFieldValue::Mapping(map) => map,
+///     _ => { panic!("Should be a mapping!"); },
+/// };
+///
+/// assert_eq!(
+///     &LogFieldValue::Text("http://www.example.com/start.html".to_string()),
+///     headers.get("referer").unwrap(),
+/// );
+/// ```
 #[derive(Debug, Clone)]
 pub struct CombinedLogLineParser {
     inner: ParserImpl,
