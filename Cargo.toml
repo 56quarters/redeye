@@ -1,7 +1,13 @@
 [package]
 name = "redeye"
 version = "0.1.0"
-authors = ["Nick Pillitteri <nick@tshlabs.org>"]
+authors = ["TSH Labs"]
+description = "Parse Apache-style access logs into Logstash JSON"
+homepage = "https://github.com/tshlabs/redeye"
+repository = "https://github.com/tshlabs/redeye.git"
+readme = "README.md"
+license = "GPL-3.0+"
+keywords = ["logs", "parsing", "cli", "access logs"]
 
 [dependencies]
 chrono = "0.4"
