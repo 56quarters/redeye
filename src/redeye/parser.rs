@@ -30,6 +30,70 @@ pub trait LogLineParser {
     fn parse(&self, line: &str) -> RedeyeResult<LogEvent>;
 }
 
+/// Implementation of a `LogLineParser` that parses access logs in the
+/// NCSA Common Log Format into an object suitable for being serialized
+/// into Logstash compatible JSON.
+///
+/// An example of the Common Log Format and the resulting fields that will
+/// be parsed by this implementation are given below.
+///
+/// # Logs
+///
+/// An example of a log line in this format is given below.
+///
+/// ```text
+/// 127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] "GET /index.html HTTP/1.0" 200 2326
+/// ```
+///
+/// In this log line, the fields of a parsed `LogEvent` object would be
+/// (in JSON).
+///
+/// ```json
+/// {
+///   "remote_host": "127.0.0.1",
+///   "remote_user": "frank",
+///   "@timestamp": "2000-10-10T13:55:36-07:00",
+///   "requested_url": "GET /index.html HTTP/1.0",
+///   "method": "GET",
+///   "requested_uri": "/index.html",
+///   "protocol": "HTTP/1.0",
+///   "status_code": 200,
+///   "content_length": 2326,
+///   "@version": "1",
+///   "message": "127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] \"GET /index.html HTTP/1.0\" 200 2326"
+/// }
+/// ```
+///
+/// Some things to note about this example:
+/// * The request portion of the log line has been parsed into method, path,
+///   and protocol components.
+/// * The second field (the "-" in the original log line) has been omitted
+///   because the "-" represents a missing value.
+/// * The timestamp field has a `@` prefix because it has special meaning
+///   to Logstash.
+/// * The field `@version` has been added and has special meaning to Logstash.
+/// * The field `message` contains the entire original log line.
+///
+/// See the [Apache docs](https://httpd.apache.org/docs/current/logs.html#accesslog)
+/// for the specifics of the log line format.
+///
+/// # Example
+///
+///
+/// ```rust
+/// use redeye::parser::{LogLineParser, CommonLogLineParser};
+/// use redeye::types::LogFieldValue;
+///
+/// let parser = CommonLogLineParser::new();
+/// let event = parser.parse("127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] \"GET /index.html HTTP/1.0\" 200 2326").unwrap();
+/// let fields = event.fields();
+/// let request = fields.get("requested_url").unwrap();
+///
+/// assert_eq!(
+///     &LogFieldValue::Text("GET /index.html HTTP/1.0".to_string()),
+///     request
+/// );
+/// ```
 #[derive(Debug, Clone)]
 pub struct CommonLogLineParser {
     inner: ParserImpl,
@@ -41,7 +105,7 @@ impl CommonLogLineParser {
             inner: ParserImpl::new(
                 Regex::new(concat!(
                     r"^([^\s]+)\s+", // host
-                    r"([^\s]+)\s+",  // rfc931 ident
+                    r"([^\s]+)\s+",  // rfc1413 ident
                     r"([^\s]+)\s+",  // username
                     r"\[(.+)\]\s+",  // timestamp
                     "\"(",           // open " and HTTP request
@@ -93,7 +157,7 @@ impl CombinedLogLineParser {
             inner: ParserImpl::new(
                 Regex::new(concat!(
                     r"^([^\s]+)\s+",    // host
-                    r"([^\s]+)\s+",     // rfc931 ident
+                    r"([^\s]+)\s+",     // rfc1413 ident
                     r"([^\s]+)\s+",     // username
                     r"\[(.+)\]\s+",     // timestamp
                     "\"(",              // open " and HTTP request
