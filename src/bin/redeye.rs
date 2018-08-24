@@ -41,7 +41,7 @@ fn parse_cli_opts<'a>(args: Vec<String>) -> ArgMatches<'a> {
         .version(crate_version!())
         .set_term_width(MAX_TERM_WIDTH)
         .about(
-            "\nRedeye converts NCSA or Apache HTTPD style access to JSON understood \
+            "\nRedeye converts NCSA or Apache HTTPd style access to JSON understood \
              by Logstash. Access log entries are read line by line from stdin, \
              converted to Logstash JSON, and emitted on stdout. Currently \
              Common and Combined access log formats are supported. For more \

@@ -7,7 +7,7 @@ homepage = "https://github.com/tshlabs/redeye"
 repository = "https://github.com/tshlabs/redeye.git"
 readme = "README.md"
 license = "GPL-3.0+"
-keywords = ["logs", "parsing", "cli", "access logs"]
+keywords = ["logs", "parsing", "cli", "ncsa"]
 
 [dependencies]
 chrono = "0.4"
