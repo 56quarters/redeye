@@ -16,7 +16,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-//!
+//! Adapters to enable async line-by-line input
 
 use std::io::{self, BufRead, BufReader, Read};
 use tokio::io::{stdin, AsyncRead, Stdin};

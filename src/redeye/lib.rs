@@ -16,7 +16,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-//!
+//! Supporting library for the Redeye log parser.
 
 #![forbid(unsafe_code)]
 

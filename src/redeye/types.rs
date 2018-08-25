@@ -16,7 +16,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-//!
+//! Core types and errors of the library
 
 use chrono::{format, DateTime, FixedOffset};
 use serde::{Serialize, Serializer};
@@ -26,6 +26,7 @@ use std::io;
 
 pub type RedeyeResult<T> = Result<T, RedeyeError>;
 
+/// Possible error that may occur while parsing and emitting access logs.
 #[derive(Fail, Debug)]
 pub enum RedeyeError {
     #[fail(display = "{}", _0)]
@@ -62,6 +63,11 @@ impl From<format::ParseError> for RedeyeError {
     }
 }
 
+/// Possible types of values for a single log field.
+///
+/// Values may be nested arbitrarily deep by using the `Mapping` variant.
+/// This is typically used for groups of values like request or response
+/// headers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LogFieldValue {
     Mapping(HashMap<String, LogFieldValue>),
@@ -84,6 +90,11 @@ impl Serialize for LogFieldValue {
     }
 }
 
+/// Holder for values parsed from a single log line.
+///
+/// Most of the values will correspond to a field parsed from the incoming
+/// access log line. The names of the fields are picked to be compatible
+/// with the format expected by Logstash consumers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LogEvent {
     values: HashMap<String, LogFieldValue>,

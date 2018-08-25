@@ -16,7 +16,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-//!
+//! Parsers for various access log formats
 
 use chrono::DateTime;
 use regex::{Captures, Regex};
