@@ -512,3 +512,161 @@ fn empty_field(val: &str) -> Option<&str> {
         Some(val)
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::{parse_int_value, parse_text_value, parse_timestamp, COMMON_LOG_TIMESTAMP};
+    use chrono::{Datelike, Timelike};
+    use regex::{Captures, Regex};
+    use types::{LogFieldValue, RedeyeError};
+
+    fn single_val_capture<'a>(line: &'a str) -> Captures<'a> {
+        let r = Regex::new(r"^(.+)$").unwrap();
+        r.captures(line).unwrap()
+    }
+
+    #[test]
+    fn test_parse_timestamp_missing() {
+        let line = "127.0.0.1";
+        let c = single_val_capture(line);
+        let res = parse_timestamp(&c, 2 /* shouldn't exist */, line, COMMON_LOG_TIMESTAMP);
+
+        match res {
+            Err(RedeyeError::ParseError(_)) => (),
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parse_timestamp_empty_field() {
+        let line = "-";
+        let c = single_val_capture(line);
+        let res = parse_timestamp(&c, 1, line, COMMON_LOG_TIMESTAMP);
+
+        match res {
+            Ok(None) => (),
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parse_timestamp_bad_format() {
+        let line = "asdf";
+        let c = single_val_capture(line);
+        let res = parse_timestamp(&c, 1, line, COMMON_LOG_TIMESTAMP);
+
+        match res {
+            Err(RedeyeError::TimestampParseError(_)) => (),
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parse_timestamp_success() {
+        let line = "11/Oct/2000:13:55:36 -0700";
+        let c = single_val_capture(line);
+        let res = parse_timestamp(&c, 1, line, COMMON_LOG_TIMESTAMP);
+
+        match res {
+            Ok(Some(LogFieldValue::Timestamp(ts))) => {
+                assert_eq!(2000, ts.year());
+                assert_eq!(10, ts.month());
+                assert_eq!(11, ts.day());
+                assert_eq!(13, ts.hour());
+                assert_eq!(55, ts.minute());
+                assert_eq!(36, ts.second());
+                assert_eq!(-7 * 3600, ts.offset().local_minus_utc());
+            }
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parse_text_value_missing() {
+        let line = "127.0.0.1";
+        let c = single_val_capture(line);
+        let res = parse_text_value(&c, 2 /* shouldn't exist */, line);
+
+        match res {
+            Err(RedeyeError::ParseError(_)) => (),
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parse_text_value_empty_field() {
+        let line = "-";
+        let c = single_val_capture(line);
+        let res = parse_text_value(&c, 1, line);
+
+        match res {
+            Ok(None) => (),
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parse_text_value_success() {
+        let line = "127.0.0.1";
+        let c = single_val_capture(line);
+        let res = parse_text_value(&c, 1, line);
+
+        match res {
+            Ok(Some(LogFieldValue::Text(s))) => {
+                assert_eq!("127.0.0.1".to_owned(), s);
+            }
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parse_int_value_missing() {
+        let line = "200";
+        let c = single_val_capture(line);
+        let res = parse_int_value(&c, 2 /* shouldn't exist */, line);
+
+        match res {
+            Err(RedeyeError::ParseError(_)) => (),
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parse_int_value_empty_field() {
+        let line = "-";
+        let c = single_val_capture(line);
+        let res = parse_int_value(&c, 1, line);
+
+        match res {
+            Ok(None) => (),
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parse_int_value_bad_format() {
+        let line = "asdf";
+        let c = single_val_capture(line);
+        let res = parse_int_value(&c, 1, line);
+
+        match res {
+            Err(RedeyeError::ParseError(_)) => (),
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parse_int_value_success() {
+        let line = "404";
+        let c = single_val_capture(line);
+        let res = parse_int_value(&c, 1, line);
+
+        match res {
+            Ok(Some(LogFieldValue::Int(v))) => {
+                assert_eq!(404, v);
+            }
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+}

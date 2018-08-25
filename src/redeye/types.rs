@@ -40,9 +40,36 @@ pub enum RedeyeError {
 
     #[fail(display = "Could not parse: {}", _0)]
     ParseError(String),
+}
 
-    #[fail(display = "An unknown error occurred")]
-    Unknown,
+impl RedeyeError {
+    pub fn is_io_error(&self) -> bool {
+        match self {
+            &RedeyeError::IoError(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_serialization_error(&self) -> bool {
+        match self {
+            &RedeyeError::SerializationError(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_timestamp_parse_error(&self) -> bool {
+        match self {
+            &RedeyeError::TimestampParseError(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_parse_error(&self) -> bool {
+        match self {
+            &RedeyeError::ParseError(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl From<io::Error> for RedeyeError {
