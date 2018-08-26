@@ -516,10 +516,198 @@ fn empty_field(val: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
 
-    use super::{parse_int_value, parse_text_value, parse_timestamp, COMMON_LOG_TIMESTAMP};
+    use super::{parse_int_value, parse_text_value, parse_timestamp, ParserImpl, COMMON_LOG_TIMESTAMP};
     use chrono::{Datelike, Timelike};
     use regex::{Captures, Regex};
     use types::{LogFieldValue, RedeyeError};
+
+    #[test]
+    fn test_parser_impl_no_match() {
+        let inner = ParserImpl::new(Regex::new(r"^(.+)$").unwrap());
+        let res = inner.apply("");
+
+        match res {
+            Err(RedeyeError::ParseError(_)) => (),
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parser_impl_add_text_field() {
+        let inner = ParserImpl::new(Regex::new(r"^([^\s]+)\s([^\s]+)$").unwrap());
+        let res = inner
+            .apply("some thing")
+            .and_then(|b| b.add_text_field("first", 1))
+            .and_then(|b| b.add_text_field("second", 2))
+            .map(|b| b.build());
+
+        match res {
+            Ok(fields) => {
+                assert_eq!(&LogFieldValue::Text("some".to_owned()), fields.get("first").unwrap());
+                assert_eq!(&LogFieldValue::Text("thing".to_owned()), fields.get("second").unwrap());
+            }
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parser_impl_add_text_field_empty() {
+        let inner = ParserImpl::new(Regex::new(r"^([^\s]+)\s([^\s]+)$").unwrap());
+        let res = inner
+            .apply("- asdf")
+            .and_then(|b| b.add_text_field("first", 1))
+            .and_then(|b| b.add_text_field("second", 2))
+            .map(|b| b.build());
+
+        match res {
+            Ok(fields) => {
+                assert!(!fields.contains_key("first"));
+                assert!(fields.contains_key("second"));
+            }
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parser_impl_add_timestamp_field() {
+        let inner = ParserImpl::new(Regex::new(r"^\[(.+)\]$").unwrap());
+        let res = inner
+            .apply("[11/Oct/2000:13:55:36 -0700]")
+            .and_then(|b| b.add_timestamp_field("@timestamp", 1, COMMON_LOG_TIMESTAMP))
+            .map(|b| b.build());
+
+        match res {
+            Ok(fields) => match fields.get("@timestamp") {
+                Some(LogFieldValue::Timestamp(ts)) => {
+                    assert_eq!(2000, ts.year());
+                    assert_eq!(10, ts.month());
+                    assert_eq!(11, ts.day());
+                    assert_eq!(13, ts.hour());
+                    assert_eq!(55, ts.minute());
+                    assert_eq!(36, ts.second());
+                    assert_eq!(-7 * 3600, ts.offset().local_minus_utc());
+                }
+                v => panic!("Unexpected field result: {:?}", v),
+            },
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parser_impl_add_timestamp_field_empty() {
+        let inner = ParserImpl::new(Regex::new(r"^\[(.+)\]$").unwrap());
+        let res = inner
+            .apply("[-]")
+            .and_then(|b| b.add_timestamp_field("@timestamp", 1, COMMON_LOG_TIMESTAMP))
+            .map(|b| b.build());
+
+        match res {
+            Ok(fields) => match fields.get("@timestamp") {
+                None => (),
+                v => panic!("Unexpected field result: {:?}", v),
+            },
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parser_impl_add_int_field() {
+        let inner = ParserImpl::new(Regex::new(r"^(.+)$").unwrap());
+        let res = inner
+            .apply("204")
+            .and_then(|b| b.add_int_field("status_code", 1))
+            .map(|b| b.build());
+
+        match res {
+            Ok(fields) => {
+                assert_eq!(&LogFieldValue::Int(204), fields.get("status_code").unwrap());
+            }
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parser_impl_add_int_field_empty() {
+        let inner = ParserImpl::new(Regex::new(r"^(.+)$").unwrap());
+        let res = inner
+            .apply("-")
+            .and_then(|b| b.add_int_field("status_code", 1))
+            .map(|b| b.build());
+
+        match res {
+            Ok(fields) => match fields.get("status_code") {
+                None => (),
+                v => panic!("Unexpected field result: {:?}", v),
+            },
+
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parser_impl_add_fixed_value() {
+        let inner = ParserImpl::new(Regex::new(r"^(.+)$").unwrap());
+        let res = inner
+            .apply("-")
+            .map(|b| b.add_fixed_value("@version", "1"))
+            .map(|b| b.build());
+
+        match res {
+            Ok(fields) => {
+                assert_eq!(&LogFieldValue::Text("1".to_owned()), fields.get("@version").unwrap());
+            }
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parser_impl_add_mapping() {
+        let inner = ParserImpl::new(Regex::new(r"^([^\s]+)\s([^\s]+)$").unwrap());
+        let res = inner
+            .apply("192.168.1.11 gzip")
+            .map(|b| b.add_mapping_field("request_headers"))
+            .and_then(|b| b.add_text_field("remote_ip", 1))
+            .and_then(|b| b.add_text_field("content_encoding", 2))
+            .map(|b| b.complete_mapping())
+            .map(|b| b.build());
+
+        match res {
+            Ok(fields) => match fields.get("request_headers") {
+                Some(LogFieldValue::Mapping(map)) => {
+                    assert_eq!(
+                        &LogFieldValue::Text("192.168.1.11".to_owned()),
+                        map.get("remote_ip").unwrap()
+                    );
+                    assert_eq!(
+                        &LogFieldValue::Text("gzip".to_owned()),
+                        map.get("content_encoding").unwrap()
+                    );
+                }
+                v => panic!("Unexpected field result: {:?}", v),
+            },
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
+
+    #[test]
+    fn test_parser_impl_add_mapping_empty() {
+        let inner = ParserImpl::new(Regex::new(r"^([^\s]+)\s([^\s]+)$").unwrap());
+        let res = inner
+            .apply("- -")
+            .map(|b| b.add_mapping_field("request_headers"))
+            .and_then(|b| b.add_text_field("remote_ip", 1))
+            .and_then(|b| b.add_text_field("content_encoding", 2))
+            .map(|b| b.complete_mapping())
+            .map(|b| b.build());
+
+        match res {
+            Ok(fields) => match fields.get("request_headers") {
+                None => (),
+                v => panic!("Unexpected field result: {:?}", v),
+            },
+            v => panic!("Unexpected result: {:?}", v),
+        }
+    }
 
     fn single_val_capture<'a>(line: &'a str) -> Captures<'a> {
         let r = Regex::new(r"^(.+)$").unwrap();
@@ -669,4 +857,5 @@ mod tests {
             v => panic!("Unexpected result: {:?}", v),
         }
     }
+
 }
