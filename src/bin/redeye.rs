@@ -82,11 +82,12 @@ where
                 .parse(&line)
                 .and_then(|event| serde_json::to_string(&event).map_err(RedeyeError::from))
                 .and_then(|json| writeln!(writer, "{}", json).map_err(RedeyeError::from))
-                .map_err(|e| handle_redeye_error(e));
+                .map_err(handle_redeye_error);
             Ok(())
-        }).map_err(|e| handle_redeye_error(e))
+        }).map_err(handle_redeye_error)
 }
 
+#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 fn handle_redeye_error(err: RedeyeError) {
     eprintln!("redeye: WARNING: {}", err);
 }

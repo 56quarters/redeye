@@ -45,28 +45,28 @@ pub enum RedeyeError {
 impl RedeyeError {
     pub fn is_io_error(&self) -> bool {
         match self {
-            &RedeyeError::IoError(_) => true,
+            RedeyeError::IoError(_) => true,
             _ => false,
         }
     }
 
     pub fn is_serialization_error(&self) -> bool {
         match self {
-            &RedeyeError::SerializationError(_) => true,
+            RedeyeError::SerializationError(_) => true,
             _ => false,
         }
     }
 
     pub fn is_timestamp_parse_error(&self) -> bool {
         match self {
-            &RedeyeError::TimestampParseError(_) => true,
+            RedeyeError::TimestampParseError(_) => true,
             _ => false,
         }
     }
 
     pub fn is_parse_error(&self) -> bool {
         match self {
-            &RedeyeError::ParseError(_) => true,
+            RedeyeError::ParseError(_) => true,
             _ => false,
         }
     }

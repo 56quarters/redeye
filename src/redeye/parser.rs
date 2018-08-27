@@ -137,6 +137,12 @@ impl CommonLogLineParser {
     }
 }
 
+impl Default for CommonLogLineParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LogLineParser for CommonLogLineParser {
     fn parse(&self, line: &str) -> RedeyeResult<LogEvent> {
         let line = line.trim();
@@ -264,6 +270,12 @@ impl CombinedLogLineParser {
                 )).unwrap(),
             ),
         }
+    }
+}
+
+impl Default for CombinedLogLineParser {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -520,7 +532,7 @@ mod tests {
         parse_int_value, parse_text_value, parse_timestamp, CombinedLogLineParser, CommonLogLineParser, LogLineParser,
         ParserImpl, COMMON_LOG_TIMESTAMP,
     };
-    use chrono::{DateTime, Datelike, FixedOffset, Timelike, Utc};
+    use chrono::{Datelike, FixedOffset, Timelike, Utc};
     use regex::{Captures, Regex};
     use types::{LogFieldValue, RedeyeError};
 
