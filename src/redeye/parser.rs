@@ -516,10 +516,70 @@ fn empty_field(val: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
 
-    use super::{parse_int_value, parse_text_value, parse_timestamp, ParserImpl, COMMON_LOG_TIMESTAMP};
-    use chrono::{Datelike, Timelike};
+    use super::{
+        parse_int_value, parse_text_value, parse_timestamp, CombinedLogLineParser, CommonLogLineParser, LogLineParser,
+        ParserImpl, COMMON_LOG_TIMESTAMP,
+    };
+    use chrono::{DateTime, Datelike, FixedOffset, Timelike, Utc};
     use regex::{Captures, Regex};
     use types::{LogFieldValue, RedeyeError};
+
+    #[test]
+    fn test_common_log_line_parser() {
+        let line = "127.0.0.1 - frank [11/Oct/2000:13:55:36 -0700] \"GET /index.html HTTP/1.0\" 200 2326";
+        let offset = FixedOffset::west(7 * 3600);
+        let ts = Utc::now()
+            .with_timezone(&offset)
+            .with_year(2000)
+            .unwrap()
+            .with_month(10)
+            .unwrap()
+            .with_day(11)
+            .unwrap()
+            .with_hour(13)
+            .unwrap()
+            .with_minute(55)
+            .unwrap()
+            .with_second(36)
+            .unwrap()
+            .with_nanosecond(0)
+            .unwrap();
+
+        let parser = CommonLogLineParser::new();
+        let event = parser.parse(line).unwrap();
+        let fields = event.fields();
+
+        assert_eq!(
+            &LogFieldValue::Text("127.0.0.1".to_owned()),
+            fields.get("remote_host").unwrap()
+        );
+        assert!(!fields.contains_key("ident"));
+        assert_eq!(
+            &LogFieldValue::Text("frank".to_owned()),
+            fields.get("remote_user").unwrap()
+        );
+        assert_eq!(&LogFieldValue::Timestamp(ts), fields.get("@timestamp").unwrap());
+        assert_eq!(
+            &LogFieldValue::Text("GET /index.html HTTP/1.0".to_owned()),
+            fields.get("requested_url").unwrap()
+        );
+        assert_eq!(&LogFieldValue::Text("GET".to_owned()), fields.get("method").unwrap());
+        assert_eq!(
+            &LogFieldValue::Text("/index.html".to_owned()),
+            fields.get("requested_uri").unwrap()
+        );
+        assert_eq!(
+            &LogFieldValue::Text("HTTP/1.0".to_owned()),
+            fields.get("protocol").unwrap()
+        );
+        assert_eq!(&LogFieldValue::Int(200), fields.get("status_code").unwrap());
+        assert_eq!(&LogFieldValue::Int(2326), fields.get("content_length").unwrap());
+        assert_eq!(&LogFieldValue::Text("1".to_owned()), fields.get("@version").unwrap());
+        assert_eq!(&LogFieldValue::Text(line.to_owned()), fields.get("message").unwrap());
+    }
+
+    #[test]
+    fn test_combined_log_line_parser() {}
 
     #[test]
     fn test_parser_impl_no_match() {
