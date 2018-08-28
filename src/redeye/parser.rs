@@ -781,7 +781,7 @@ mod tests {
         }
     }
 
-    fn single_val_capture<'a>(line: &'a str) -> Captures<'a> {
+    fn single_val_capture(line: &str) -> Captures {
         let r = Regex::new(r"^(.+)$").unwrap();
         r.captures(line).unwrap()
     }
