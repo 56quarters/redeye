@@ -89,7 +89,14 @@ where
 
 #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 fn handle_redeye_error(err: RedeyeError) {
-    eprintln!("redeye: WARNING: {}", err);
+    let display = match err {
+        RedeyeError::IoError(e) => format!("I/O error: {}", e),
+        RedeyeError::SerializationError(e) => format!("Serialization error: {}", e),
+        RedeyeError::TimestampParseError(e) => format!("Invalid timestamp: {}", e),
+        RedeyeError::ParseError(e) => format!("Invalid log line: {}", e),
+    };
+
+    eprintln!("redeye: WARNING: {}", display);
 }
 
 fn main() {
