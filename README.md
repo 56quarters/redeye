@@ -30,62 +30,63 @@ While an example of Combined Log Format would be:
 
 ## Usage
 
-Some examples of how Redeye can be used to parse log files into structured JSON
-are given below.
+Some examples of how Redeye can be used to parse log files into structured
+JSON are given below.
 
 ### Parsing a File
 
-Since Redeye parses log lines from standard input, you can parse a file using something
-like the following shell command. Note that this example uses the `jq` tool in order to
-format the JSON nicely.
+Since Redeye parses log lines from standard input, you can parse a file using
+something like the following shell command.
 
 ```
 $ cat <<EOF > logs.txt
-127.0.0.1 - - [02/Oct/2018:13:55:36 -0400] "GET /index.html HTTP/1.0" 200 2326
-127.0.0.1 - - [02/Oct/2018:13:55:37 -0400] "GET /favicon.ico HTTP/1.0" 200 56
-127.0.0.1 - - [02/Oct/2018:13:55:38 -0400] "GET /header.png HTTP/1.0" 304 4051
+127.0.0.1 - - [02/Oct/2018:13:55:36 -0400] "GET /index.html HTTP/1.1" 200 2326
+127.0.0.1 - - [02/Oct/2018:13:55:37 -0400] "GET /favicon.ico HTTP/1.1" 200 56
+127.0.0.1 - - [02/Oct/2018:13:55:38 -0400] "GET /header.png HTTP/1.1" 304 4051
 EOF
 ```
 
-This creates a file with a few log entries named `logs.txt`. Next, we parse these entries.
+This creates a file with a few log entries named `logs.txt`. Next, we parse
+these entries. Note that this example uses the `jq` tool in order to format
+the JSON nicely.
 
 ```
-$ redeye --common-format < log.txt | jq .
+$ redeye --common-format < logs.txt | jq -S .
 {
+  "@timestamp": "2018-10-02T13:55:36-04:00",
+  "@version": "1",
+  "content_length": 2326,
+  "message": "127.0.0.1 - - [02/Oct/2018:13:55:36 -0400] \"GET /index.html HTTP/1.1\" 200 2326",
+  "method": "GET",
+  "protocol": "HTTP/1.1",
   "remote_host": "127.0.0.1",
   "requested_uri": "/index.html",
-  "content_length": 2326,
-  "requested_url": "GET /index.html HTTP/1.0",
-  "@timestamp": "2018-10-02T13:55:36-04:00",
-  "protocol": "HTTP/1.0",
-  "message": "127.0.0.1 - - [02/Oct/2018:13:55:36 -0400] \"GET /index.html HTTP/1.0\" 200 2326",
-  "method": "GET",
-  "@version": "1",
+  "requested_url": "GET /index.html HTTP/1.1",
   "status_code": 200
 }
 {
-  "protocol": "HTTP/1.0",
-  "message": "127.0.0.1 - - [02/Oct/2018:13:55:37 -0400] \"GET /favicon.ico HTTP/1.0\" 200 56",
   "@timestamp": "2018-10-02T13:55:37-04:00",
-  "method": "GET",
-  "requested_url": "GET /favicon.ico HTTP/1.0",
-  "requested_uri": "/favicon.ico",
   "@version": "1",
   "content_length": 56,
+  "message": "127.0.0.1 - - [02/Oct/2018:13:55:37 -0400] \"GET /favicon.ico HTTP/1.1\" 200 56",
+  "method": "GET",
+  "protocol": "HTTP/1.1",
   "remote_host": "127.0.0.1",
+  "requested_uri": "/favicon.ico",
+  "requested_url": "GET /favicon.ico HTTP/1.1",
   "status_code": 200
 }
 {
-  "@version": "1",
-  "remote_host": "127.0.0.1",
-  "content_length": 4051,
-  "message": "127.0.0.1 - - [02/Oct/2018:13:55:38 -0400] \"GET /header.png HTTP/1.0\" 304 4051",
   "@timestamp": "2018-10-02T13:55:38-04:00",
+  "@version": "1",
+  "content_length": 4051,
+  "message": "127.0.0.1 - - [02/Oct/2018:13:55:38 -0400] \"GET /header.png HTTP/1.1\" 304 4051",
   "method": "GET",
-  "protocol": "HTTP/1.0",
-  "status_code": 304,
+  "protocol": "HTTP/1.1",
+  "remote_host": "127.0.0.1",
   "requested_uri": "/header.png",
-  "requested_url": "GET /header.png HTTP/1.0"
+  "requested_url": "GET /header.png HTTP/1.1",
+  "status_code": 304
 }
 ```
 
