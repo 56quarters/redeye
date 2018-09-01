@@ -39,7 +39,7 @@ Since Redeye parses log lines from standard input, you can parse a file using
 something like the following shell command.
 
 ```
-$ cat <<EOF > logs.txt
+cat <<EOF > logs.txt
 127.0.0.1 - - [02/Oct/2018:13:55:36 -0400] "GET /index.html HTTP/1.1" 200 2326
 127.0.0.1 - - [02/Oct/2018:13:55:37 -0400] "GET /favicon.ico HTTP/1.1" 200 56
 127.0.0.1 - - [02/Oct/2018:13:55:38 -0400] "GET /header.png HTTP/1.1" 304 4051
@@ -51,7 +51,7 @@ these entries. Note that this example uses the `jq` tool in order to format
 the JSON nicely.
 
 ```
-$ redeye --common-format < logs.txt | jq -S .
+redeye --common-format < logs.txt | jq -S .
 {
   "@timestamp": "2018-10-02T13:55:36-04:00",
   "@version": "1",
@@ -92,17 +92,74 @@ $ redeye --common-format < logs.txt | jq -S .
 
 ### Parsing Server Output
 
-TBD
+Redeye comes with a simple HTTP server written in Python (version 3.4+) that
+emits access logs in Common Log Format over `stdout`. You can run this server
+for an example of how Redeye might work parsing its output.
+
+From the root of the Redeye codebase, run
+
+```
+python util/server.py | ./path/to/redeye --common-format | jq -S .
+```
+
+In another terminal, run the following command a few times.
+
+```
+curl 'http://localhost:8000/'
+```
+
+If you don't see any output from the Python server and Redeye, try running
+the `curl` command a few more times. Redeye buffers input for efficiency
+and so it might take several requests before it emits any output.
 
 ### Tailing a File
 
-TBD
+You can also parse log lines as they are written to a file using Redeye and
+standard UNIX tools. An example using the same Python server from above
+is given below. 
+
+First, start the Python HTTP server to serve requests and write access logs
+to a file.
+
+```
+python util/server.py > access.log
+```
+
+Next in another terminal, start tailing the contents of that file and pipe
+them to Redeye.
+
+```
+tail -f access.log | ./path/to/redeye --common-format | jq -S .
+```
+
+In yet another terminal, make a few requests with `curl` to see this in
+action.
+
+```
+curl 'http://localhost:8000/'
+```
+
+Again, be aware that there's a fair amount of buffering going on here so
+you may need to make a few requests before you see any output.
 
 ## Install
 
-Redeye is written in Rust and can be built with the Rust build tool `cargo`.
-It is also available as a Docker image. Instructions for each of these methods
-are below.
+Redeye is written in Rust and can be built or installed with the Rust tool
+`cargo`. It is also available as a Docker image. Instructions for each of
+these methods are below.
+
+### From Cargo (Rust Package Manager)
+
+First, install a Rust toolchain with [rustup](https://rustup.rs/).
+
+Next, run the following command to download and install Redeye.
+
+```
+cargo install --force redeye
+```
+
+This will install Redeye alongside other Rust binaries. You'll want to make
+sure that binaries installed this way are on your `$PATH`.
 
 ### From Source - glibc
 
