@@ -38,8 +38,8 @@ JSON are given below.
 Since Redeye parses log lines from standard input, you can parse a file using
 something like the following shell command.
 
-```
-cat <<EOF > logs.txt
+```shell
+$ cat <<EOF > logs.txt
 127.0.0.1 - - [02/Oct/2018:13:55:36 -0400] "GET /index.html HTTP/1.1" 200 2326
 127.0.0.1 - - [02/Oct/2018:13:55:37 -0400] "GET /favicon.ico HTTP/1.1" 200 56
 127.0.0.1 - - [02/Oct/2018:13:55:38 -0400] "GET /header.png HTTP/1.1" 304 4051
@@ -50,8 +50,8 @@ This creates a file with a few log entries named `logs.txt`. Next, we parse
 these entries. Note that this example uses the `jq` tool in order to format
 the JSON nicely.
 
-```
-redeye --common-format < logs.txt | jq -S .
+```shell
+$ redeye --common-format < logs.txt | jq -S .
 {
   "@timestamp": "2018-10-02T13:55:36-04:00",
   "@version": "1",
@@ -98,14 +98,14 @@ for an example of how Redeye might work parsing its output.
 
 From the root of the Redeye codebase, run
 
-```
-python util/server.py | ./path/to/redeye --common-format | jq -S .
+```shell
+$ python util/server.py | ./path/to/redeye --common-format | jq -S .
 ```
 
 In another terminal, run the following command a few times.
 
-```
-curl 'http://localhost:8000/'
+```shell
+$ curl 'http://localhost:8000/'
 ```
 
 If you don't see any output from the Python server and Redeye, try running
@@ -121,22 +121,22 @@ is given below.
 First, start the Python HTTP server to serve requests and write access logs
 to a file.
 
-```
-python util/server.py > access.log
+```shell
+$ python util/server.py > access.log
 ```
 
 Next in another terminal, start tailing the contents of that file and pipe
 them to Redeye.
 
-```
-tail -f access.log | ./path/to/redeye --common-format | jq -S .
+```shell
+$ tail -f access.log | ./path/to/redeye --common-format | jq -S .
 ```
 
 In yet another terminal, make a few requests with `curl` to see this in
 action.
 
-```
-curl 'http://localhost:8000/'
+```shell
+$ curl 'http://localhost:8000/'
 ```
 
 Again, be aware that there's a fair amount of buffering going on here so
@@ -154,8 +154,8 @@ First, install a Rust toolchain with [rustup](https://rustup.rs/).
 
 Next, run the following command to download and install Redeye.
 
-```
-cargo install --force redeye
+```shell
+$ cargo install --force redeye
 ```
 
 This will install Redeye alongside other Rust binaries. You'll want to make
@@ -171,9 +171,9 @@ Next make sure you have the required non-Rust dependencies.
 
 Then, checkout and build the project:
 
-```
-git clone https://github.com/tshlabs/redeye.git && cd redeye
-cargo build --release
+```shell
+$ git clone https://github.com/tshlabs/redeye.git && cd redeye
+$ cargo build --release
 ```
 
 Your binary should be at `target/release/redeye`.
@@ -184,8 +184,8 @@ First, install a Rust toolchain with [rustup](https://rustup.rs/).
 
 Then, add a musl target:
 
-```
-rustup target add x86_64-unknown-linux-musl
+```shell
+$ rustup target add x86_64-unknown-linux-musl
 ```
 
 Next make sure you have the required non-Rust dependencies. 
@@ -195,9 +195,9 @@ Next make sure you have the required non-Rust dependencies.
 
 Then, checkout and build the project:
 
-```
-git clone https://github.com/tshlabs/redeye.git && cd redeye
-cargo build --release --target=x86_64-unknown-linux-musl
+```shell
+$ git clone https://github.com/tshlabs/redeye.git && cd redeye
+$ cargo build --release --target=x86_64-unknown-linux-musl
 ```
 
 Your binary should be at `target/x86_64-unknown-linux-musl/release/redeye`.
