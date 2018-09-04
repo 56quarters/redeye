@@ -298,7 +298,7 @@ impl LogLineParser for CombinedLogLineParser {
             .add_int_field("content_length", 10)?
             .add_mapping_field("request_headers")
             .add_text_field("referer", 11)?
-            .add_text_field("user_agent", 12)?
+            .add_text_field("user-agent", 12)?
             .complete_mapping()
             .add_fixed_value("@version", OUTPUT_VERSION)
             .add_fixed_value("message", line)
