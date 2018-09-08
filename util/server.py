@@ -28,9 +28,12 @@ class RedeyeHTTPRequestHandler(SimpleHTTPRequestHandler):
 if __name__ == '__main__':
     from http.server import HTTPServer
 
-    server = HTTPServer(("localhost", 8000), RedeyeHTTPRequestHandler)
+    host = "localhost"
+    port = 8000
+    server = HTTPServer((host, port), RedeyeHTTPRequestHandler)
 
     try:
+        print("Starting server on {}:{}".format(host, port), file=sys.stderr)
         server.serve_forever()
     except KeyboardInterrupt:
         print("Exiting on SIGINT", file=sys.stderr)
