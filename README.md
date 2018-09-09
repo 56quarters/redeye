@@ -204,7 +204,12 @@ Your binary should be at `target/x86_64-unknown-linux-musl/release/redeye`.
 
 ### Docker
 
-TBD
+Docker images of Redeye are pushed to Docker Hub for each release. To run the latest
+version, use the following command.
+
+```
+docker run --rm --tty --interactive tshlabs/redeye:latest
+```
 
 ## Documentation
 
