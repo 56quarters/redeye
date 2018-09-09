@@ -24,7 +24,6 @@ extern crate chrono;
 extern crate failure;
 #[macro_use]
 extern crate failure_derive;
-extern crate futures;
 extern crate regex;
 extern crate serde;
 extern crate serde_json;

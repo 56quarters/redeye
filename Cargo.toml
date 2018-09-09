@@ -1,6 +1,6 @@
 [package]
 name = "redeye"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["TSH Labs"]
 description = "Parse Apache-style access logs into Logstash JSON"
 homepage = "https://github.com/tshlabs/redeye"
@@ -12,7 +12,6 @@ keywords = ["logs", "parsing", "cli", "ncsa"]
 [dependencies]
 chrono = "0.4"
 clap = "2.32"
-futures = "0.1"
 failure = "0.1"
 failure_derive = "0.1"
 regex = "1.0"
