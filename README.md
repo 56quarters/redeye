@@ -219,7 +219,7 @@ The library documentation is available at https://docs.rs/redeye/
 
 The source code is available on GitHub at https://github.com/tshlabs/redeye
 
-## Changesx86_64-unknown-linux-musl
+## Changes
 
 Release notes for Cadence can be found in the [CHANGES.md](CHANGES.md) file.
 
