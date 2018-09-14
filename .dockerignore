@@ -1,5 +1,5 @@
 benches
-build-docker.sh
+docker-*.sh
 Dockerfile
 .env
 .git
