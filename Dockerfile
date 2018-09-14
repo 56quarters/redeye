@@ -9,4 +9,5 @@ RUN cargo build --release --target=x86_64-unknown-linux-musl \
 
 FROM scratch
 COPY --from=build /usr/src/redeye/target/x86_64-unknown-linux-musl/release/redeye /bin/redeye
-CMD ["/bin/redeye", "--help"]
+ENTRYPOINT ["/bin/redeye"]
+CMD ["--help"]
