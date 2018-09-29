@@ -131,7 +131,8 @@ impl CommonLogLineParser {
                     ")\"\\s+",       // close " and HTTP request
                     r"([^\s]+)\s+",  // status
                     r"([^\s]+)$",    // bytes
-                )).unwrap(),
+                ))
+                .unwrap(),
             ),
         }
     }
@@ -267,7 +268,8 @@ impl CombinedLogLineParser {
                     r"([^\s]+)\s+",     // bytes
                     "\"([^\"]+)\"\\s+", // "referer" [sic]
                     "\"([^\"]+)\"$",    // "user agent"
-                )).unwrap(),
+                ))
+                .unwrap(),
             ),
         }
     }

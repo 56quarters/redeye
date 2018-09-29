@@ -16,10 +16,14 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-//! Adapters to enable async line-by-line input
+//! Adapters to enable async line-by-line input and output.
 
-use std::io::{self, BufRead, BufReader, Read};
-use tokio::io::{stdin, AsyncRead, Stdin};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
+use tokio::io::{stdin, stdout, AsyncRead, AsyncWrite, Stdin, Stdout};
+use tokio::prelude::Poll;
+
+const DEFAULT_BUF_INPUT_BYTES: usize = 1024;
+const DEFAULT_BUF_OUTPUT_BYTES: usize = 1024;
 
 /// `AsyncRead` implementation for standard input that supports
 /// buffering and can be used for line-by-line reading of input.
@@ -29,9 +33,7 @@ pub struct StdinBufReader {
 
 impl StdinBufReader {
     pub fn new(reader: Stdin) -> Self {
-        StdinBufReader {
-            reader: BufReader::new(reader),
-        }
+        Self::with_capacity(DEFAULT_BUF_INPUT_BYTES, reader)
     }
 
     pub fn with_capacity(cap: usize, reader: Stdin) -> Self {
@@ -62,5 +64,44 @@ impl BufRead for StdinBufReader {
 
     fn consume(&mut self, amt: usize) {
         self.reader.consume(amt)
+    }
+}
+
+/// `AsyncWrite` implementation for standard output that supports buffering.
+pub struct StdoutBufWriter {
+    writer: BufWriter<Stdout>,
+}
+
+impl StdoutBufWriter {
+    pub fn new(writer: Stdout) -> Self {
+        Self::with_capacity(DEFAULT_BUF_OUTPUT_BYTES, writer)
+    }
+
+    pub fn with_capacity(cap: usize, writer: Stdout) -> Self {
+        StdoutBufWriter {
+            writer: BufWriter::with_capacity(cap, writer),
+        }
+    }
+}
+
+impl Default for StdoutBufWriter {
+    fn default() -> Self {
+        Self::new(stdout())
+    }
+}
+
+impl Write for StdoutBufWriter {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
+        self.writer.write(buf)
+    }
+
+    fn flush(&mut self) -> Result<(), io::Error> {
+        self.writer.flush()
+    }
+}
+
+impl AsyncWrite for StdoutBufWriter {
+    fn shutdown(&mut self) -> Poll<(), io::Error> {
+        self.writer.shutdown()
     }
 }

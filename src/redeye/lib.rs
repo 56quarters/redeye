@@ -29,6 +29,6 @@ extern crate serde;
 extern crate serde_json;
 extern crate tokio;
 
-pub mod input;
+pub mod io;
 pub mod parser;
 pub mod types;
