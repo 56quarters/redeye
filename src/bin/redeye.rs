@@ -16,7 +16,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-//!
+//! Redeye - Parse Apache-style access logs into Logstash JSON
 
 #[macro_use]
 extern crate clap;
@@ -31,7 +31,7 @@ use redeye::types::RedeyeError;
 use std::env;
 use std::io::BufRead;
 use std::process;
-use tokio::io::lines;
+use tokio::io::{lines, stdin, stdout};
 use tokio::prelude::*;
 
 const MAX_TERM_WIDTH: usize = 72;
@@ -67,6 +67,18 @@ fn parse_cli_opts<'a>(args: Vec<String>) -> ArgMatches<'a> {
                      will be printed to stderr.",
                 )
                 .conflicts_with_all(&["common-format"]),
+        )
+        .arg(
+            Arg::with_name("output-buffer")
+                .long("output-buffer")
+                .default_value("1024")
+                .help("How large a buffer to use when writing output, in bytes."),
+        )
+        .arg(
+            Arg::with_name("input-buffer")
+                .long("input-buffer")
+                .default_value("1024")
+                .help("How large a buffer to use when reading input, in bytes."),
         )
         .get_matches_from(args)
 }
@@ -118,9 +130,16 @@ fn main() {
         process::exit(1);
     };
 
-    let reader = StdinBufReader::default();
-    let writer = StdoutBufWriter::default();
-    let lines = new_parser_task(reader, parser, writer);
+    let reader = {
+        let input_buf = value_t!(matches, "input-buffer", usize).unwrap_or_else(|e| e.exit());
+        StdinBufReader::with_capacity(input_buf, stdin())
+    };
 
+    let writer = {
+        let output_buf = value_t!(matches, "output-buffer", usize).unwrap_or_else(|e| e.exit());
+        StdoutBufWriter::with_capacity(output_buf, stdout())
+    };
+
+    let lines = new_parser_task(reader, parser, writer);
     tokio::run(lines);
 }
