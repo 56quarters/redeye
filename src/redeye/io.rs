@@ -19,7 +19,7 @@
 //! Adapters to enable async line-by-line input and output.
 
 use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
-use tokio::io::{stdin, stdout, AsyncRead, AsyncWrite, Stdin, Stdout};
+use tokio::io::{stdin, stdout, AsyncRead, AsyncWrite};
 use tokio::prelude::Poll;
 
 const DEFAULT_BUF_INPUT_BYTES: usize = 1024;
@@ -28,17 +28,23 @@ const DEFAULT_BUF_OUTPUT_BYTES: usize = 1024;
 /// `AsyncRead` implementation for standard input that supports
 /// buffering and can be used for line-by-line reading of input.
 pub struct StdinBufReader {
-    reader: BufReader<Stdin>,
+    reader: Box<BufRead + Send + Sync>,
 }
 
 impl StdinBufReader {
-    pub fn new(reader: Stdin) -> Self {
+    pub fn new<R>(reader: R) -> Self
+    where
+        R: Read + Sync + Send + 'static,
+    {
         Self::with_capacity(DEFAULT_BUF_INPUT_BYTES, reader)
     }
 
-    pub fn with_capacity(cap: usize, reader: Stdin) -> Self {
+    pub fn with_capacity<R>(cap: usize, reader: R) -> Self
+    where
+        R: Read + Sync + Send + 'static,
+    {
         StdinBufReader {
-            reader: BufReader::with_capacity(cap, reader),
+            reader: Box::new(BufReader::with_capacity(cap, reader)),
         }
     }
 }
@@ -69,17 +75,23 @@ impl BufRead for StdinBufReader {
 
 /// `AsyncWrite` implementation for standard output that supports buffering.
 pub struct StdoutBufWriter {
-    writer: BufWriter<Stdout>,
+    writer: Box<AsyncWrite + Send + Sync>,
 }
 
 impl StdoutBufWriter {
-    pub fn new(writer: Stdout) -> Self {
+    pub fn new<W>(writer: W) -> Self
+    where
+        W: AsyncWrite + Send + Sync + 'static,
+    {
         Self::with_capacity(DEFAULT_BUF_OUTPUT_BYTES, writer)
     }
 
-    pub fn with_capacity(cap: usize, writer: Stdout) -> Self {
+    pub fn with_capacity<W>(cap: usize, writer: W) -> Self
+    where
+        W: AsyncWrite + Send + Sync + 'static,
+    {
         StdoutBufWriter {
-            writer: BufWriter::with_capacity(cap, writer),
+            writer: Box::new(BufWriter::with_capacity(cap, writer)),
         }
     }
 }
