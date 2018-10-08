@@ -126,7 +126,7 @@ fn main() {
     } else if matches.is_present("combined-format") {
         Box::new(CombinedLogLineParser::new())
     } else {
-        eprintln!("redeye: ERROR: Log input format must be specified");
+        eprintln!("redeye: error: Log input format must be specified");
         process::exit(1);
     };
 
