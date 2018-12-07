@@ -105,7 +105,6 @@ where
         .map_err(handle_redeye_error)
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
 fn handle_redeye_error(err: RedeyeError) {
     let display = match err {
         RedeyeError::IoError(e) => format!("I/O error: {}", e),

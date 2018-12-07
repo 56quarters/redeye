@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.2.1](https://github.com/tshlabs/redeye/tree/0.2.1) - 2018-12-07
+* Minor documentation fixes.
+
 ## [v0.2.0](https://github.com/tshlabs/redeye/tree/0.2.0) - 2018-10-08
 * Make input and output buffering configurable per [#2](https://github.com/tshlabs/redeye/issues/2).
 

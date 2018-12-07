@@ -221,7 +221,7 @@ The source code is available on GitHub at https://github.com/tshlabs/redeye
 
 ## Changes
 
-Release notes for Cadence can be found in the [CHANGES.md](CHANGES.md) file.
+Release notes for Redeye can be found in the [CHANGES.md](CHANGES.md) file.
 
 ## Development
 
