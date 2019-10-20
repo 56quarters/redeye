@@ -28,7 +28,7 @@ const DEFAULT_BUF_OUTPUT_BYTES: usize = 1024;
 /// `AsyncRead` implementation for standard input that supports
 /// buffering and can be used for line-by-line reading of input.
 pub struct StdinBufReader {
-    reader: Box<BufRead + Send + Sync>,
+    reader: Box<dyn BufRead + Send + Sync>,
 }
 
 impl StdinBufReader {
@@ -75,7 +75,7 @@ impl BufRead for StdinBufReader {
 
 /// `AsyncWrite` implementation for standard output that supports buffering.
 pub struct StdoutBufWriter {
-    writer: Box<AsyncWrite + Send + Sync>,
+    writer: Box<dyn AsyncWrite + Send + Sync>,
 }
 
 impl StdoutBufWriter {

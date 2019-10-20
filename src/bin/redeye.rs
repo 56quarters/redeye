@@ -18,13 +18,7 @@
 
 //! Redeye - Parse Apache-style access logs into Logstash JSON
 
-#[macro_use]
-extern crate clap;
-extern crate redeye;
-extern crate serde_json;
-extern crate tokio;
-
-use clap::{App, Arg, ArgMatches};
+use clap::{crate_version, value_t, App, Arg, ArgMatches};
 use redeye::io::{StdinBufReader, StdoutBufWriter};
 use redeye::parser::{CombinedLogLineParser, CommonLogLineParser, LogLineParser};
 use redeye::types::RedeyeError;
@@ -85,7 +79,7 @@ fn parse_cli_opts<'a>(args: Vec<String>) -> ArgMatches<'a> {
 
 fn new_parser_task<R, W>(
     reader: R,
-    parser: Box<LogLineParser + Send + Sync>,
+    parser: Box<dyn LogLineParser + Send + Sync>,
     mut writer: W,
 ) -> impl Future<Item = (), Error = ()>
 where
@@ -120,7 +114,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let matches = parse_cli_opts(args);
 
-    let parser: Box<LogLineParser + Send + Sync> = if matches.is_present("common-format") {
+    let parser: Box<dyn LogLineParser + Send + Sync> = if matches.is_present("common-format") {
         Box::new(CommonLogLineParser::new())
     } else if matches.is_present("combined-format") {
         Box::new(CombinedLogLineParser::new())

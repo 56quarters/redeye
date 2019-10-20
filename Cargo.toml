@@ -8,6 +8,7 @@ repository = "https://github.com/tshlabs/redeye.git"
 readme = "README.md"
 license = "GPL-3.0+"
 keywords = ["logs", "parsing", "cli", "ncsa"]
+edition = "2018"
 
 [dependencies]
 chrono = "0.4"

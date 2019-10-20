@@ -19,6 +19,7 @@
 //! Core types and errors of the library
 
 use chrono::{format, DateTime, FixedOffset};
+use failure::Fail;
 use serde::{Serialize, Serializer};
 use serde_json::error::Error as SerdeError;
 use std::collections::HashMap;

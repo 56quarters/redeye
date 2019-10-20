@@ -18,11 +18,11 @@
 
 //! Parsers for various access log formats
 
+use crate::types::{LogEvent, LogFieldValue, RedeyeError, RedeyeResult};
 use chrono::DateTime;
 use regex::{Captures, Regex};
 use std::collections::HashMap;
 use std::rc::Rc;
-use types::{LogEvent, LogFieldValue, RedeyeError, RedeyeResult};
 
 const COMMON_LOG_TIMESTAMP: &str = "%d/%b/%Y:%T %z";
 const OUTPUT_VERSION: &str = "1";
@@ -363,7 +363,12 @@ impl<'a> FieldBuilder<'a> {
     /// Create a nested field builder object for parsing fields from the
     /// given `regex::Captures` object and parent builder that control will
     /// be returned to when `.complete_mapping()` is called.
-    fn leaf(line: &'a str, captures: Rc<Captures<'a>>, field: String, parent: Box<FieldBuilder<'a>>) -> Self {
+    fn leaf(
+        line: &'a str,
+        captures: Rc<Captures<'a>>,
+        field: String,
+        parent: Box<FieldBuilder<'a>>,
+    ) -> Self {
         FieldBuilder {
             line,
             captures,
@@ -422,7 +427,8 @@ impl<'a> FieldBuilder<'a> {
         K: Into<String>,
         V: Into<String>,
     {
-        self.values.insert(field.into(), LogFieldValue::Text(value.into()));
+        self.values
+            .insert(field.into(), LogFieldValue::Text(value.into()));
         self
     }
 
@@ -467,7 +473,12 @@ impl<'a> FieldBuilder<'a> {
 /// at all, which is not the same as being empty, aka `-`) or the field
 /// could not be parsed into a timestamp. Return `Ok(None)` if the field
 /// exists but contains an empty value (`-`).
-fn parse_timestamp(matches: &Captures, index: usize, line: &str, format: &str) -> RedeyeResult<Option<LogFieldValue>> {
+fn parse_timestamp(
+    matches: &Captures,
+    index: usize,
+    line: &str,
+    format: &str,
+) -> RedeyeResult<Option<LogFieldValue>> {
     let field_match = matches
         .get(index)
         .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
@@ -475,7 +486,9 @@ fn parse_timestamp(matches: &Captures, index: usize, line: &str, format: &str) -
         .map(empty_field)?;
 
     if let Some(v) = field_match {
-        Ok(Some(LogFieldValue::Timestamp(DateTime::parse_from_str(v, format)?)))
+        Ok(Some(LogFieldValue::Timestamp(DateTime::parse_from_str(
+            v, format,
+        )?)))
     } else {
         Ok(None)
     }
@@ -486,7 +499,11 @@ fn parse_timestamp(matches: &Captures, index: usize, line: &str, format: &str) -
 /// Return an error if the capture was missing (the field didn't exist
 /// at all, which is not the same as being empty, aka `-`). Return
 /// `Ok(None)` if the field exists but contains an empty value (`-`).
-fn parse_text_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<Option<LogFieldValue>> {
+fn parse_text_value(
+    matches: &Captures,
+    index: usize,
+    line: &str,
+) -> RedeyeResult<Option<LogFieldValue>> {
     matches
         .get(index)
         .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
@@ -501,7 +518,11 @@ fn parse_text_value(matches: &Captures, index: usize, line: &str) -> RedeyeResul
 /// at all, which is not the same as being empty, aka `-`) or the field
 /// could not be parsed into an integer. Return `Ok(None)` if the field
 /// exists but contains an empty value (`-`).
-fn parse_int_value(matches: &Captures, index: usize, line: &str) -> RedeyeResult<Option<LogFieldValue>> {
+fn parse_int_value(
+    matches: &Captures,
+    index: usize,
+    line: &str,
+) -> RedeyeResult<Option<LogFieldValue>> {
     let field_match = matches
         .get(index)
         .ok_or_else(|| RedeyeError::ParseError(line.to_string()))
@@ -531,16 +552,17 @@ fn empty_field(val: &str) -> Option<&str> {
 mod tests {
 
     use super::{
-        parse_int_value, parse_text_value, parse_timestamp, CombinedLogLineParser, CommonLogLineParser, LogLineParser,
+        parse_int_value, parse_text_value, parse_timestamp, CommonLogLineParser, LogLineParser,
         ParserImpl, COMMON_LOG_TIMESTAMP,
     };
+    use crate::types::{LogFieldValue, RedeyeError};
     use chrono::{Datelike, FixedOffset, Timelike, Utc};
     use regex::{Captures, Regex};
-    use types::{LogFieldValue, RedeyeError};
 
     #[test]
     fn test_common_log_line_parser() {
-        let line = "127.0.0.1 - frank [11/Oct/2000:13:55:36 -0700] \"GET /index.html HTTP/1.0\" 200 2326";
+        let line =
+            "127.0.0.1 - frank [11/Oct/2000:13:55:36 -0700] \"GET /index.html HTTP/1.0\" 200 2326";
         let offset = FixedOffset::west(7 * 3600);
         let ts = Utc::now()
             .with_timezone(&offset)
@@ -572,12 +594,18 @@ mod tests {
             &LogFieldValue::Text("frank".to_owned()),
             fields.get("remote_user").unwrap()
         );
-        assert_eq!(&LogFieldValue::Timestamp(ts), fields.get("@timestamp").unwrap());
+        assert_eq!(
+            &LogFieldValue::Timestamp(ts),
+            fields.get("@timestamp").unwrap()
+        );
         assert_eq!(
             &LogFieldValue::Text("GET /index.html HTTP/1.0".to_owned()),
             fields.get("requested_url").unwrap()
         );
-        assert_eq!(&LogFieldValue::Text("GET".to_owned()), fields.get("method").unwrap());
+        assert_eq!(
+            &LogFieldValue::Text("GET".to_owned()),
+            fields.get("method").unwrap()
+        );
         assert_eq!(
             &LogFieldValue::Text("/index.html".to_owned()),
             fields.get("requested_uri").unwrap()
@@ -587,9 +615,18 @@ mod tests {
             fields.get("protocol").unwrap()
         );
         assert_eq!(&LogFieldValue::Int(200), fields.get("status_code").unwrap());
-        assert_eq!(&LogFieldValue::Int(2326), fields.get("content_length").unwrap());
-        assert_eq!(&LogFieldValue::Text("1".to_owned()), fields.get("@version").unwrap());
-        assert_eq!(&LogFieldValue::Text(line.to_owned()), fields.get("message").unwrap());
+        assert_eq!(
+            &LogFieldValue::Int(2326),
+            fields.get("content_length").unwrap()
+        );
+        assert_eq!(
+            &LogFieldValue::Text("1".to_owned()),
+            fields.get("@version").unwrap()
+        );
+        assert_eq!(
+            &LogFieldValue::Text(line.to_owned()),
+            fields.get("message").unwrap()
+        );
     }
 
     #[test]
@@ -617,8 +654,14 @@ mod tests {
 
         match res {
             Ok(fields) => {
-                assert_eq!(&LogFieldValue::Text("some".to_owned()), fields.get("first").unwrap());
-                assert_eq!(&LogFieldValue::Text("thing".to_owned()), fields.get("second").unwrap());
+                assert_eq!(
+                    &LogFieldValue::Text("some".to_owned()),
+                    fields.get("first").unwrap()
+                );
+                assert_eq!(
+                    &LogFieldValue::Text("thing".to_owned()),
+                    fields.get("second").unwrap()
+                );
             }
             v => panic!("Unexpected result: {:?}", v),
         }
@@ -728,7 +771,10 @@ mod tests {
 
         match res {
             Ok(fields) => {
-                assert_eq!(&LogFieldValue::Text("1".to_owned()), fields.get("@version").unwrap());
+                assert_eq!(
+                    &LogFieldValue::Text("1".to_owned()),
+                    fields.get("@version").unwrap()
+                );
             }
             v => panic!("Unexpected result: {:?}", v),
         }
@@ -931,5 +977,4 @@ mod tests {
             v => panic!("Unexpected result: {:?}", v),
         }
     }
-
 }
