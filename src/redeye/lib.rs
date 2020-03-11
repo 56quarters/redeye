@@ -20,6 +20,5 @@
 
 #![forbid(unsafe_code)]
 
-pub mod io;
 pub mod parser;
 pub mod types;
