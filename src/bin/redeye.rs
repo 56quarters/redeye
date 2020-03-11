@@ -19,14 +19,11 @@
 //! Redeye - Parse Apache-style access logs into Logstash JSON
 
 use clap::{crate_version, value_t, App, Arg, ArgMatches};
-use redeye::io::{StdinBufReader, StdoutBufWriter};
 use redeye::parser::{CombinedLogLineParser, CommonLogLineParser, LogLineParser};
 use redeye::types::RedeyeError;
 use std::env;
-use std::io::BufRead;
+use std::io::{stdin, stdout, BufRead, BufReader, BufWriter, Write};
 use std::process;
-use tokio::io::{lines, stdin, stdout};
-use tokio::prelude::*;
 
 const MAX_TERM_WIDTH: usize = 72;
 
@@ -77,28 +74,6 @@ fn parse_cli_opts<'a>(args: Vec<String>) -> ArgMatches<'a> {
         .get_matches_from(args)
 }
 
-fn new_parser_task<R, W>(
-    reader: R,
-    parser: Box<dyn LogLineParser + Send + Sync>,
-    mut writer: W,
-) -> impl Future<Item = (), Error = ()>
-where
-    R: AsyncRead + BufRead,
-    W: AsyncWrite,
-{
-    lines(reader)
-        .map_err(RedeyeError::from)
-        .for_each(move |line| {
-            let _ = parser
-                .parse(&line)
-                .and_then(|event| serde_json::to_string(&event).map_err(RedeyeError::from))
-                .and_then(|json| writeln!(writer, "{}", json).map_err(RedeyeError::from))
-                .map_err(handle_redeye_error);
-            Ok(())
-        })
-        .map_err(handle_redeye_error)
-}
-
 fn handle_redeye_error(err: RedeyeError) {
     let display = match err {
         RedeyeError::IoError(e) => format!("I/O error: {}", e),
@@ -107,7 +82,7 @@ fn handle_redeye_error(err: RedeyeError) {
         RedeyeError::ParseError(e) => format!("Invalid log line: {}", e),
     };
 
-    eprintln!("redeye: WARNING: {}", display);
+    eprintln!("redeye: warning: {}", display);
 }
 
 fn main() {
@@ -125,14 +100,20 @@ fn main() {
 
     let reader = {
         let input_buf = value_t!(matches, "input-buffer", usize).unwrap_or_else(|e| e.exit());
-        StdinBufReader::with_capacity(input_buf, stdin())
+        BufReader::with_capacity(input_buf, stdin())
     };
 
-    let writer = {
+    let mut writer = {
         let output_buf = value_t!(matches, "output-buffer", usize).unwrap_or_else(|e| e.exit());
-        StdoutBufWriter::with_capacity(output_buf, stdout())
+        BufWriter::with_capacity(output_buf, stdout())
     };
 
-    let lines = new_parser_task(reader, parser, writer);
-    tokio::run(lines);
+    for line in reader.lines() {
+        let _r = line
+            .map_err(RedeyeError::from)
+            .and_then(|log| parser.parse(&log))
+            .and_then(|event| serde_json::to_string(&event).map_err(RedeyeError::from))
+            .and_then(|json| writeln!(writer, "{}", json).map_err(RedeyeError::from))
+            .map_err(handle_redeye_error);
+    }
 }
