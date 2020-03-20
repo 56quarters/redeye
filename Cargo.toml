@@ -1,6 +1,6 @@
 [package]
 name = "redeye"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["TSH Labs"]
 description = "Parse Apache-style access logs into Logstash JSON"
 homepage = "https://github.com/tshlabs/redeye"
