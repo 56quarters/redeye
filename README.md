@@ -1,6 +1,6 @@
 # Redeye
 
-[![Build Status](https://travis-ci.org/tshlabs/redeye.svg?branch=master)](https://travis-ci.org/tshlabs/redeye)
+[![Build Status](https://travis-ci.org/56quarters/redeye.svg?branch=master)](https://travis-ci.org/56quarters/redeye)
 [![crates.io](https://img.shields.io/crates/v/redeye.svg)](https://crates.io/crates/redeye/)
 
 Parse Apache-style access logs into Logstash JSON.
@@ -116,7 +116,7 @@ and so it might take several requests before it emits any output.
 
 You can also parse log lines as they are written to a file using Redeye and
 standard UNIX tools. An example using the same Python server from above
-is given below. 
+is given below.
 
 First, start the Python HTTP server to serve requests and write access logs
 to a file.
@@ -165,14 +165,14 @@ sure that binaries installed this way are on your `$PATH`.
 
 First, install a Rust toolchain with [rustup](https://rustup.rs/).
 
-Next make sure you have the required non-Rust dependencies. 
+Next make sure you have the required non-Rust dependencies.
 
 * `build-essential` - C compiler toolchain
 
 Then, checkout and build the project:
 
 ```shell
-$ git clone https://github.com/tshlabs/redeye.git && cd redeye
+$ git clone https://github.com/56quarters/redeye.git && cd redeye
 $ cargo build --release
 ```
 
@@ -188,7 +188,7 @@ Then, add a musl target:
 $ rustup target add x86_64-unknown-linux-musl
 ```
 
-Next make sure you have the required non-Rust dependencies. 
+Next make sure you have the required non-Rust dependencies.
 
 * `build-essential` - C compiler toolchain
 * `musl-tools` - musl libc implementation
@@ -196,7 +196,7 @@ Next make sure you have the required non-Rust dependencies.
 Then, checkout and build the project:
 
 ```shell
-$ git clone https://github.com/tshlabs/redeye.git && cd redeye
+$ git clone https://github.com/56quarters/redeye.git && cd redeye
 $ cargo build --release --target=x86_64-unknown-linux-musl
 ```
 
@@ -217,7 +217,7 @@ The library documentation is available at https://docs.rs/redeye/
 
 ## Source
 
-The source code is available on GitHub at https://github.com/tshlabs/redeye
+The source code is available on GitHub at https://github.com/56quarters/redeye
 
 ## Changes
 

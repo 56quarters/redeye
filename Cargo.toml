@@ -3,8 +3,8 @@ name = "redeye"
 version = "0.3.0"
 authors = ["Nick Pillitteri"]
 description = "Parse Apache-style access logs into Logstash JSON"
-homepage = "https://github.com/tshlabs/redeye"
-repository = "https://github.com/tshlabs/redeye.git"
+homepage = "https://github.com/56quarters/redeye"
+repository = "https://github.com/56quarters/redeye.git"
 readme = "README.md"
 license = "GPL-3.0+"
 keywords = ["logs", "parsing", "cli", "ncsa"]
@@ -22,3 +22,6 @@ serde_json = "1.0"
 [lib]
 name = "redeye"
 path = "src/redeye/lib.rs"
+
+[badges]
+travis-ci = { repository = "56quarters/redeye" }
