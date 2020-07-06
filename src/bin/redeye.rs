@@ -18,60 +18,46 @@
 
 //! Redeye - Parse Apache-style access logs into Logstash JSON
 
-use clap::{crate_version, value_t, App, Arg, ArgMatches};
+use argh::FromArgs;
 use redeye::parser::{CombinedLogLineParser, CommonLogLineParser, LogLineParser};
 use redeye::types::RedeyeError;
-use std::env;
 use std::io::{stdin, stdout, BufRead, BufReader, BufWriter, Write};
 use std::process;
 
-const MAX_TERM_WIDTH: usize = 72;
+fn default_output_buffer() -> usize {
+    1024
+}
 
-fn parse_cli_opts<'a>(args: Vec<String>) -> ArgMatches<'a> {
-    App::new("Redeye log converter")
-        .version(crate_version!())
-        .set_term_width(MAX_TERM_WIDTH)
-        .about(
-            "\nRedeye converts NCSA or Apache HTTPd style access logs to JSON \
-             understood by Logstash. Access log entries are read line by line \
-             from stdin, converted to Logstash JSON, and emitted on stdout. \
-             Currently Common and Combined access log formats are supported. \
-             For more information about these formats, see \n\n\
-             https://httpd.apache.org/docs/current/logs.html#accesslog",
-        )
-        .arg(
-            Arg::with_name("common-format")
-                .long("common-format")
-                .help(
-                    "Parse log entries assuming the Common log format. Entries \
-                     that don't match this format will be discarded and a warning \
-                     will be printed to stderr.",
-                )
-                .conflicts_with_all(&["combined-format"]),
-        )
-        .arg(
-            Arg::with_name("combined-format")
-                .long("combined-format")
-                .help(
-                    "Parse log entries assuming the Combined log format. Entries \
-                     that don't match this format will be discarded and a warning \
-                     will be printed to stderr.",
-                )
-                .conflicts_with_all(&["common-format"]),
-        )
-        .arg(
-            Arg::with_name("output-buffer")
-                .long("output-buffer")
-                .default_value("1024")
-                .help("How large a buffer to use when writing output, in bytes."),
-        )
-        .arg(
-            Arg::with_name("input-buffer")
-                .long("input-buffer")
-                .default_value("1024")
-                .help("How large a buffer to use when reading input, in bytes."),
-        )
-        .get_matches_from(args)
+fn default_input_buffer() -> usize {
+    1024
+}
+
+/// Redeye converts NCSA or Apache HTTPd style access logs to JSON understood by
+/// Logstash. Access log entries are read line by line from stdin, converted to
+/// Logstash JSON, and emitted on stdout. Currently Common and Combined access
+/// log formats are supported. For more information about these formats, see
+/// https://httpd.apache.org/docs/current/logs.html#accesslog",
+#[derive(FromArgs, PartialEq, Debug)]
+struct RedeyeOptions {
+    /// parse log entries assuming the Common log format. Entries
+    /// that don't match this format will be discarded and a warning
+    /// will be printed to stderr.
+    #[argh(switch)]
+    common_format: bool,
+
+    /// parse log entries assuming the Combined log format. Entries
+    /// that don't match this format will be discarded and a warning
+    /// will be printed to stderr.
+    #[argh(switch)]
+    combined_format: bool,
+
+    /// how large a buffer to use when writing output, in bytes.
+    #[argh(option, default = "default_output_buffer()")]
+    output_buffer: usize,
+
+    /// how large a buffer to use when reading input, in bytes.
+    #[argh(option, default = "default_input_buffer()")]
+    input_buffer: usize,
 }
 
 fn handle_redeye_error(err: RedeyeError) {
@@ -86,27 +72,19 @@ fn handle_redeye_error(err: RedeyeError) {
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let matches = parse_cli_opts(args);
+    let opts: RedeyeOptions = argh::from_env();
 
-    let parser: Box<dyn LogLineParser + Send + Sync> = if matches.is_present("common-format") {
+    let parser: Box<dyn LogLineParser + Send + Sync> = if opts.common_format {
         Box::new(CommonLogLineParser::new())
-    } else if matches.is_present("combined-format") {
+    } else if opts.combined_format {
         Box::new(CombinedLogLineParser::new())
     } else {
         eprintln!("redeye: error: Log input format must be specified");
         process::exit(1);
     };
 
-    let reader = {
-        let input_buf = value_t!(matches, "input-buffer", usize).unwrap_or_else(|e| e.exit());
-        BufReader::with_capacity(input_buf, stdin())
-    };
-
-    let mut writer = {
-        let output_buf = value_t!(matches, "output-buffer", usize).unwrap_or_else(|e| e.exit());
-        BufWriter::with_capacity(output_buf, stdout())
-    };
+    let reader = BufReader::with_capacity(opts.input_buffer, stdin());
+    let mut writer = BufWriter::with_capacity(opts.output_buffer, stdout());
 
     for line in reader.lines() {
         let _r = line

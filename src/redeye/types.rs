@@ -19,28 +19,44 @@
 //! Core types and errors of the library
 
 use chrono::{format, DateTime, FixedOffset};
-use failure::Fail;
 use serde::{Serialize, Serializer};
 use serde_json::error::Error as SerdeError;
 use std::collections::HashMap;
+use std::error;
+use std::fmt;
 use std::io;
 
 pub type RedeyeResult<T> = Result<T, RedeyeError>;
 
 /// Possible error that may occur while parsing and emitting access logs.
-#[derive(Fail, Debug)]
+#[derive(Debug)]
 pub enum RedeyeError {
-    #[fail(display = "{}", _0)]
-    IoError(#[cause] io::Error),
-
-    #[fail(display = "{}", _0)]
-    SerializationError(#[cause] SerdeError),
-
-    #[fail(display = "{}", _0)]
-    TimestampParseError(#[cause] format::ParseError),
-
-    #[fail(display = "Could not parse: {}", _0)]
+    IoError(io::Error),
+    SerializationError(SerdeError),
+    TimestampParseError(format::ParseError),
     ParseError(String),
+}
+
+impl fmt::Display for RedeyeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RedeyeError::IoError(ref e) => e.fmt(f),
+            RedeyeError::SerializationError(ref e) => e.fmt(f),
+            RedeyeError::TimestampParseError(ref e) => e.fmt(f),
+            RedeyeError::ParseError(ref s) => s.fmt(f),
+        }
+    }
+}
+
+impl error::Error for RedeyeError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            RedeyeError::IoError(ref e) => Some(e),
+            RedeyeError::SerializationError(ref e) => Some(e),
+            RedeyeError::TimestampParseError(ref e) => Some(e),
+            _ => None,
+        }
+    }
 }
 
 impl RedeyeError {
