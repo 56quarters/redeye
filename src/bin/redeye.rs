@@ -18,45 +18,38 @@
 
 //! Redeye - Parse Apache-style access logs into Logstash JSON
 
-use argh::FromArgs;
+use clap::Clap;
 use redeye::parser::{CombinedLogLineParser, CommonLogLineParser, LogLineParser};
 use redeye::types::RedeyeError;
 use std::io::{stdin, stdout, BufRead, BufReader, BufWriter, Write};
 use std::process;
-
-fn default_output_buffer() -> usize {
-    1024
-}
-
-fn default_input_buffer() -> usize {
-    1024
-}
 
 /// Redeye converts NCSA or Apache HTTPd style access logs to JSON understood by
 /// Logstash. Access log entries are read line by line from stdin, converted to
 /// Logstash JSON, and emitted on stdout. Currently Common and Combined access
 /// log formats are supported. For more information about these formats, see
 /// https://httpd.apache.org/docs/current/logs.html#accesslog",
-#[derive(FromArgs, PartialEq, Debug)]
+#[derive(Clap, Debug)]
+#[clap(name = "redeye")]
 struct RedeyeOptions {
     /// parse log entries assuming the Common log format. Entries
     /// that don't match this format will be discarded and a warning
     /// will be printed to stderr.
-    #[argh(switch)]
+    #[clap(long)]
     common_format: bool,
 
     /// parse log entries assuming the Combined log format. Entries
     /// that don't match this format will be discarded and a warning
     /// will be printed to stderr.
-    #[argh(switch)]
+    #[clap(long)]
     combined_format: bool,
 
     /// how large a buffer to use when writing output, in bytes.
-    #[argh(option, default = "default_output_buffer()")]
+    #[clap(long, default_value = "1024")]
     output_buffer: usize,
 
     /// how large a buffer to use when reading input, in bytes.
-    #[argh(option, default = "default_input_buffer()")]
+    #[clap(long, default_value = "1024")]
     input_buffer: usize,
 }
 
@@ -72,7 +65,7 @@ fn handle_redeye_error(err: RedeyeError) {
 }
 
 fn main() {
-    let opts: RedeyeOptions = argh::from_env();
+    let opts = RedeyeOptions::parse();
 
     let parser: Box<dyn LogLineParser + Send + Sync> = if opts.common_format {
         Box::new(CommonLogLineParser::new())
