@@ -1,6 +1,6 @@
 # Redeye
 
-[![Build Status](https://travis-ci.org/56quarters/redeye.svg?branch=master)](https://travis-ci.org/56quarters/redeye)
+![build status](https://github.com/56quarters/redeye/actions/workflows/rust.yml/badge.svg)
 [![crates.io](https://img.shields.io/crates/v/redeye.svg)](https://crates.io/crates/redeye/)
 
 Parse Apache-style access logs into Logstash JSON.
